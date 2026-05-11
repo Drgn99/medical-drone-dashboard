@@ -24,7 +24,7 @@ const emailSchema = z.object({
 });
 
 const codeSchema = z.object({
-  code: z.string().regex(/^\d{6}$/, "Code must be exactly 6 digits"),
+  code: z.string().regex(/^\d{6,10}$/, "Enter the code from your email"),
 });
 
 type EmailForm = z.infer<typeof emailSchema>;
@@ -126,12 +126,12 @@ export default function LoginPage() {
               className="space-y-4"
             >
               <div className="space-y-2">
-                <Label htmlFor="code">6-digit code</Label>
+                <Label htmlFor="code">Verification code</Label>
                 <Input
                   id="code"
                   inputMode="numeric"
-                  placeholder="000000"
-                  maxLength={6}
+                  placeholder="Enter code"
+                  maxLength={10}
                   {...codeForm.register("code")}
                 />
                 {codeForm.formState.errors.code && (
