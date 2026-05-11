@@ -252,8 +252,8 @@ export function NewOrderForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
-      {/* Patient selection */}
-      <Card>
+      {/* Patient selection — overflow-visible so the combobox dropdown can float out */}
+      <Card className="overflow-visible">
         <CardContent className="space-y-4 pt-4">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Patient
