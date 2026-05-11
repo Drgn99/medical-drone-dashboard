@@ -166,7 +166,7 @@ export default async function DashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <BatteryBar value={drone.battery} />
+                  <BatteryBar value={drone.battery_pct} />
                   <p className="text-xs text-muted-foreground">
                     {drone.last_seen
                       ? `Last seen ${formatDistanceToNow(new Date(drone.last_seen), { addSuffix: true })}`

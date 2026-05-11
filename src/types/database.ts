@@ -21,8 +21,8 @@ export interface Hospital {
   id: string;
   name: string;
   address: string | null;
-  lat: number | null;
-  lng: number | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
 }
 
@@ -30,7 +30,7 @@ export interface HospitalStaff {
   id: string;
   hospital_id: string;
   user_id: string;
-  name: string | null;
+  full_name: string | null;
   role: string;
   created_at: string;
 }
@@ -40,9 +40,10 @@ export interface Drone {
   hospital_id: string;
   name: string;
   status: DroneStatus;
-  battery: number | null;
-  lat: number | null;
-  lng: number | null;
+  battery_pct: number | null;
+  current_lat: number | null;
+  current_lng: number | null;
+  current_alt: number | null;
   last_seen: string | null;
   created_at: string;
 }
@@ -56,14 +57,16 @@ export interface Order {
   patient_email: string;
   patient_phone: string | null;
   payload_description: string | null;
-  payload_weight: number | null;
+  payload_weight_grams: number | null;
   dropoff_lat: number | null;
   dropoff_lng: number | null;
   dropoff_address: string | null;
   status: OrderStatus;
   otp_code: string | null;
+  otp_verified_at: string | null;
   dispatched_at: string | null;
   delivered_at: string | null;
+  completed_at: string | null;
   created_at: string;
 }
 
@@ -75,4 +78,19 @@ export interface DroneCommand {
   payload: Record<string, unknown>;
   status: string;
   created_at: string;
+  acked_at: string | null;
+}
+
+export interface Telemetry {
+  id: string;
+  drone_id: string;
+  order_id: string | null;
+  lat: number;
+  lng: number;
+  alt: number;
+  battery_pct: number;
+  speed_ms: number | null;
+  heading_deg: number | null;
+  flight_mode: string | null;
+  recorded_at: string;
 }

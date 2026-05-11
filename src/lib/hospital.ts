@@ -3,7 +3,7 @@ import type { Hospital, HospitalStaff } from "@/types/database";
 
 export interface HospitalContext {
   user: { id: string; email: string };
-  staff: Pick<HospitalStaff, "id" | "role" | "name">;
+  staff: Pick<HospitalStaff, "id" | "role" | "full_name">;
   hospital: Hospital;
 }
 
@@ -16,25 +16,33 @@ export async function getHospitalContext(): Promise<HospitalContext | null> {
 
   if (!user) return null;
 
-  const { data: staff } = await supabase
+  const { data: staff, error: staffError } = await supabase
     .from("hospital_staff")
-    .select("id, role, name, hospital_id")
+    .select("id, role, full_name, hospital_id")
     .eq("user_id", user.id)
     .single();
 
+  if (staffError) {
+    console.error("hospital_staff lookup failed:", staffError);
+    return null;
+  }
   if (!staff) return null;
 
-  const { data: hospital } = await supabase
+  const { data: hospital, error: hospitalError } = await supabase
     .from("hospitals")
-    .select("id, name, address, lat, lng, created_at")
+    .select("id, name, address, latitude, longitude, created_at")
     .eq("id", staff.hospital_id)
     .single();
 
+  if (hospitalError) {
+    console.error("hospitals lookup failed:", hospitalError);
+    return null;
+  }
   if (!hospital) return null;
 
   return {
     user: { id: user.id, email: user.email ?? "" },
-    staff: { id: staff.id, role: staff.role, name: staff.name },
+    staff: { id: staff.id, role: staff.role, full_name: staff.full_name },
     hospital: hospital as Hospital,
   };
 }

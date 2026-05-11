@@ -20,11 +20,15 @@ export default async function SettingsPage() {
   if (!ctx) redirect("/login");
 
   const supabase = await createClient();
-  const { data: staffList } = await supabase
+  const { data: staffList, error: staffError } = await supabase
     .from("hospital_staff")
-    .select("id, user_id, name, role, created_at")
+    .select("id, user_id, full_name, role, created_at")
     .eq("hospital_id", ctx.hospital.id)
     .order("created_at");
+
+  if (staffError) {
+    console.error("hospital_staff list failed:", staffError);
+  }
 
   const h = ctx.hospital;
 
@@ -46,11 +50,11 @@ export default async function SettingsPage() {
             <ReadOnlyField label="Address" value={h.address ?? "—"} />
             <ReadOnlyField
               label="Latitude"
-              value={h.lat != null ? h.lat.toFixed(6) : "—"}
+              value={h.latitude != null ? h.latitude.toFixed(6) : "—"}
             />
             <ReadOnlyField
               label="Longitude"
-              value={h.lng != null ? h.lng.toFixed(6) : "—"}
+              value={h.longitude != null ? h.longitude.toFixed(6) : "—"}
             />
           </CardContent>
         </Card>
@@ -92,7 +96,7 @@ export default async function SettingsPage() {
                       className={i % 2 === 1 ? "bg-slate-50/50" : ""}
                     >
                       <TableCell className="font-medium">
-                        {member.name ?? "—"}
+                        {member.full_name ?? "—"}
                         {member.user_id === ctx.user.id && (
                           <span className="ml-2 text-xs text-muted-foreground">
                             (you)

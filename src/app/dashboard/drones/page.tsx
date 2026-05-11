@@ -36,11 +36,15 @@ export default async function DronesPage() {
   if (!ctx) redirect("/login");
 
   const supabase = await createClient();
-  const { data: drones } = await supabase
+  const { data: drones, error: dronesError } = await supabase
     .from("drones")
     .select("*")
     .eq("hospital_id", ctx.hospital.id)
     .order("name");
+
+  if (dronesError) {
+    console.error("drones list failed:", dronesError);
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -77,7 +81,7 @@ export default async function DronesPage() {
                       <DroneStatusBadge status={drone.status} />
                     </TableCell>
                     <TableCell>
-                      <BatteryBar value={drone.battery} />
+                      <BatteryBar value={drone.battery_pct} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {drone.last_seen
@@ -87,8 +91,8 @@ export default async function DronesPage() {
                         : "Never"}
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      {drone.lat != null && drone.lng != null
-                        ? `${drone.lat.toFixed(4)}, ${drone.lng.toFixed(4)}`
+                      {drone.current_lat != null && drone.current_lng != null
+                        ? `${drone.current_lat.toFixed(4)}, ${drone.current_lng.toFixed(4)}`
                         : "—"}
                     </TableCell>
                     <TableCell>

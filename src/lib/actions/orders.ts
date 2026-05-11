@@ -14,7 +14,7 @@ export async function createOrder(data: {
   dropoff_lng: number;
   dropoff_address?: string;
   payload_description: string;
-  payload_weight: number;
+  payload_weight_grams: number;
   drone_id: string;
 }): Promise<{ success: false; error: string }> {
   const ctx = await getHospitalContext();
@@ -33,7 +33,7 @@ export async function createOrder(data: {
       dropoff_lng: data.dropoff_lng,
       dropoff_address: data.dropoff_address ?? null,
       payload_description: data.payload_description,
-      payload_weight: data.payload_weight,
+      payload_weight_grams: data.payload_weight_grams,
       drone_id: data.drone_id,
       hospital_id: ctx.hospital.id,
       created_by: ctx.user.id,

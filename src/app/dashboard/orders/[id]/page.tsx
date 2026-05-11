@@ -94,13 +94,17 @@ export default async function OrderDetailPage({
   const { id } = await params;
 
   const supabase = await createClient();
-  const { data: order } = await supabase
+  const { data: order, error: orderError } = await supabase
     .from("orders")
     .select("*, drones(name)")
     .eq("id", id)
     .eq("hospital_id", ctx.hospital.id)
     .single();
 
+  if (orderError) {
+    console.error("order lookup failed:", orderError);
+    notFound();
+  }
   if (!order) notFound();
 
   // Build origin for tracking link
@@ -199,8 +203,8 @@ export default async function OrderDetailPage({
               <Row
                 label="Weight"
                 value={
-                  typedOrder.payload_weight
-                    ? `${typedOrder.payload_weight} g`
+                  typedOrder.payload_weight_grams
+                    ? `${typedOrder.payload_weight_grams} g`
                     : "—"
                 }
               />

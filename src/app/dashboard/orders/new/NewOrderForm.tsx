@@ -29,7 +29,7 @@ const schema = z.object({
     .max(180),
   dropoff_address: z.string().optional(),
   payload_description: z.string().min(1, "Payload description is required"),
-  payload_weight: z
+  payload_weight_grams: z
     .number({ message: "Enter a number" })
     .min(100, "Minimum 100 g")
     .max(1500, "Maximum 1500 g"),
@@ -197,18 +197,18 @@ export function NewOrderForm({ drones }: { drones: Drone[] }) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="payload_weight">Weight (grams) *</Label>
+            <Label htmlFor="payload_weight_grams">Weight (grams) *</Label>
             <Input
-              id="payload_weight"
+              id="payload_weight_grams"
               type="number"
               min={100}
               max={1500}
               placeholder="100 – 1500"
-              {...register("payload_weight", { valueAsNumber: true })}
+              {...register("payload_weight_grams", { valueAsNumber: true })}
             />
-            {errors.payload_weight && (
+            {errors.payload_weight_grams && (
               <p className="text-xs text-destructive">
-                {errors.payload_weight.message}
+                {errors.payload_weight_grams.message}
               </p>
             )}
           </div>
