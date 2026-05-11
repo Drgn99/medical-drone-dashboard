@@ -123,67 +123,71 @@ function PatientCombobox({
   }
 
   return (
-    <div ref={containerRef} className="relative">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => {
-          if (!open) setHighlightIndex(0);
-          setOpen((o) => !o);
-        }}
-        className="h-9 w-full justify-between font-normal"
-      >
-        <span className={cn(!selected && "text-muted-foreground")}>
-          {selected ? selected.full_name : "Select a patient…"}
-        </span>
-        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-      </Button>
+    <div ref={containerRef}>
+      <div className="relative">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            if (!open) setHighlightIndex(0);
+            setOpen((o) => !o);
+          }}
+          className="h-9 w-full justify-between font-normal"
+        >
+          <span className={cn(!selected && "text-muted-foreground")}>
+            {selected ? selected.full_name : "Select a patient…"}
+          </span>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        </Button>
 
-      {open && (
-        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-input bg-white shadow-lg">
-          <div className="border-b p-2">
-            <input
-              ref={searchRef}
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setHighlightIndex(0); }}
-              onKeyDown={handleKeyDown}
-              placeholder="Search by name, civil ID, or phone…"
-              className="w-full rounded-md bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
-            />
+        {open && (
+          <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-slate-200 rounded-md shadow-lg max-h-72 overflow-hidden">
+            <div className="border-b border-slate-200 p-2">
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setHighlightIndex(0); }}
+                onKeyDown={handleKeyDown}
+                placeholder="Search by name, civil ID, or phone…"
+                className="w-full rounded-md bg-transparent px-2 py-1 text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="max-h-56 overflow-y-auto">
+              <ul ref={listRef} className="py-1">
+                {filtered.length === 0 ? (
+                  <li className="px-3 py-2 text-sm text-muted-foreground">
+                    No patients found
+                  </li>
+                ) : (
+                  filtered.map((patient, i) => (
+                    <li
+                      key={patient.id}
+                      data-item=""
+                      className={cn(
+                        "flex cursor-pointer items-center justify-between px-3 py-2 text-sm",
+                        i === highlightIndex ? "bg-slate-100" : "hover:bg-slate-50"
+                      )}
+                      onMouseEnter={() => setHighlightIndex(i)}
+                      onClick={() => selectPatient(patient)}
+                    >
+                      <span>
+                        <span className="font-medium">{patient.full_name}</span>
+                        <span className="ml-2 text-muted-foreground">
+                          · {patient.civil_id ?? "—"} · {patient.phone ?? "—"}
+                        </span>
+                      </span>
+                      {patient.id === value && (
+                        <Check className="size-4 shrink-0 text-blue-600" />
+                      )}
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
           </div>
-          <ul ref={listRef} className="max-h-56 overflow-y-auto py-1">
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-muted-foreground">
-                No patients found
-              </li>
-            ) : (
-              filtered.map((patient, i) => (
-                <li
-                  key={patient.id}
-                  data-item=""
-                  className={cn(
-                    "flex cursor-pointer items-center justify-between px-3 py-2 text-sm",
-                    i === highlightIndex ? "bg-slate-100" : "hover:bg-slate-50"
-                  )}
-                  onMouseEnter={() => setHighlightIndex(i)}
-                  onClick={() => selectPatient(patient)}
-                >
-                  <span>
-                    <span className="font-medium">{patient.full_name}</span>
-                    <span className="ml-2 text-muted-foreground">
-                      · {patient.civil_id ?? "—"} · {patient.phone ?? "—"}
-                    </span>
-                  </span>
-                  {patient.id === value && (
-                    <Check className="size-4 shrink-0 text-blue-600" />
-                  )}
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
