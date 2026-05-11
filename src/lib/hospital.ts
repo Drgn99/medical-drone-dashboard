@@ -1,0 +1,40 @@
+import { createClient } from "@/lib/supabase/server";
+import type { Hospital, HospitalStaff } from "@/types/database";
+
+export interface HospitalContext {
+  user: { id: string; email: string };
+  staff: Pick<HospitalStaff, "id" | "role" | "name">;
+  hospital: Hospital;
+}
+
+export async function getHospitalContext(): Promise<HospitalContext | null> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data: staff } = await supabase
+    .from("hospital_staff")
+    .select("id, role, name, hospital_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!staff) return null;
+
+  const { data: hospital } = await supabase
+    .from("hospitals")
+    .select("id, name, address, lat, lng, created_at")
+    .eq("id", staff.hospital_id)
+    .single();
+
+  if (!hospital) return null;
+
+  return {
+    user: { id: user.id, email: user.email ?? "" },
+    staff: { id: staff.id, role: staff.role, name: staff.name },
+    hospital: hospital as Hospital,
+  };
+}

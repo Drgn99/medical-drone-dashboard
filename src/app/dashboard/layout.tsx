@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getHospitalContext } from "@/lib/hospital";
+import { signOut } from "@/lib/actions/auth";
+import { SidebarNavLinks } from "@/components/SidebarNavLinks";
 
 export default async function DashboardLayout({
   children,
@@ -7,24 +10,23 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
-  const { data: staff } = await supabase
-    .from("hospital_staff")
-    .select("id")
-    .eq("user_id", user.id)
-    .single();
+  const ctx = await getHospitalContext();
+  if (!ctx) redirect("/onboarding");
 
-  if (!staff) {
-    redirect("/onboarding");
-  }
-
-  return <div className="min-h-screen bg-slate-50">{children}</div>;
+  return (
+    <div className="flex min-h-screen flex-col md:flex-row">
+      <SidebarNavLinks
+        hospitalName={ctx.hospital.name}
+        userEmail={ctx.user.email}
+        signOutAction={signOut}
+      />
+      <main className="flex-1 bg-slate-50">{children}</main>
+    </div>
+  );
 }
