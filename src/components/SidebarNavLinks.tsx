@@ -11,6 +11,7 @@ import {
   Settings,
   Menu,
   X,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ const navItems = [
     exact: true,
   },
   { href: "/dashboard/drones", label: "Drones", icon: Plane },
+  { href: "/dashboard/patients", label: "Patients", icon: Users },
   { href: "/dashboard/orders", label: "Orders", icon: Package, exact: true },
   { href: "/dashboard/orders/new", label: "New Order", icon: PlusCircle },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },

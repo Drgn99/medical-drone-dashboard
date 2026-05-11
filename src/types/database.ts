@@ -68,6 +68,7 @@ export interface Order {
   delivered_at: string | null;
   completed_at: string | null;
   created_at: string;
+  patient_id?: string | null;
 }
 
 export interface DroneCommand {
@@ -79,6 +80,19 @@ export interface DroneCommand {
   status: string;
   created_at: string;
   acked_at: string | null;
+}
+
+export interface Patient {
+  id: string;
+  hospital_id: string;
+  full_name: string;
+  civil_id: string | null;
+  email: string | null;
+  phone: string | null;
+  date_of_birth: string | null;
+  notes: string | null;
+  created_at: string;
+  created_by: string | null;
 }
 
 export interface Telemetry {

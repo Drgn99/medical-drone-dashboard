@@ -7,9 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getHospitalContext } from "@/lib/hospital";
 
 export async function createOrder(data: {
-  patient_name: string;
-  patient_email: string;
-  patient_phone?: string;
+  patient_id: string;
   dropoff_lat: number;
   dropoff_lng: number;
   dropoff_address?: string;
@@ -21,14 +19,29 @@ export async function createOrder(data: {
   if (!ctx) return { success: false, error: "Not authenticated" };
 
   const supabase = await createClient();
+
+  // Fetch patient to build the denormalized snapshot
+  const { data: patient, error: patientError } = await supabase
+    .from("patients")
+    .select("id, full_name, email, phone")
+    .eq("id", data.patient_id)
+    .eq("hospital_id", ctx.hospital.id)
+    .single();
+
+  if (patientError || !patient) {
+    console.error("patient lookup for order failed:", patientError);
+    return { success: false, error: "Patient not found" };
+  }
+
   const otp_code = String(randomInt(100000, 999999));
 
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
-      patient_name: data.patient_name,
-      patient_email: data.patient_email,
-      patient_phone: data.patient_phone ?? null,
+      patient_id: data.patient_id,
+      patient_name: patient.full_name,
+      patient_email: patient.email ?? "",
+      patient_phone: patient.phone ?? null,
       dropoff_lat: data.dropoff_lat,
       dropoff_lng: data.dropoff_lng,
       dropoff_address: data.dropoff_address ?? null,
