@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 // Fix default Leaflet marker icons when bundled by webpack/turbopack
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,8 +63,7 @@ export default function LocationPicker({
     onChange(latlng);
   }
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSearch() {
     if (!searchQuery.trim() || !map) return;
     try {
       const res = await fetch(
@@ -81,21 +82,23 @@ export default function LocationPicker({
 
   return (
     <div className="space-y-2">
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <input
+      <div className="flex gap-2">
+        <Input
           type="text"
           placeholder="Search address…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSearch();
+            }
+          }}
         />
-        <button
-          type="submit"
-          className="rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-        >
+        <Button type="button" variant="outline" onClick={handleSearch}>
           Search
-        </button>
-      </form>
+        </Button>
+      </div>
 
       <div
         className="overflow-hidden rounded-lg border border-input"
