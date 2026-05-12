@@ -21,7 +21,7 @@ export default async function NewOrderPage({
   ] = await Promise.all([
     supabase
       .from("drones")
-      .select("id, name, status")
+      .select("id, name, status, weight_grams, max_payload_grams")
       .eq("hospital_id", ctx.hospital.id)
       .order("name"),
     supabase
