@@ -72,15 +72,12 @@ export default async function PatientDetailPage({
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            disabled
-            className={buttonVariants({
-              variant: "outline",
-              className: "cursor-not-allowed opacity-50",
-            })}
+          <Link
+            href={`/dashboard/patients/${p.id}/edit`}
+            className={buttonVariants({ variant: "outline" })}
           >
             Edit
-          </button>
+          </Link>
           <Link
             href={`/dashboard/orders/new?patientId=${p.id}`}
             className={buttonVariants({ variant: "default" })}

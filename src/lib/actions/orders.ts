@@ -37,6 +37,25 @@ export async function createOrder(data: {
     return { success: false, error: "Patient not found" };
   }
 
+  // Server-side capacity check — never trust client validation alone
+  const { data: drone, error: droneError } = await supabase
+    .from("drones")
+    .select("max_payload_grams")
+    .eq("id", data.drone_id)
+    .eq("hospital_id", ctx.hospital.id)
+    .single();
+
+  if (droneError || !drone) {
+    return { success: false, error: "Drone not found" };
+  }
+
+  if (
+    drone.max_payload_grams != null &&
+    data.payload_weight_grams > drone.max_payload_grams
+  ) {
+    return { success: false, error: "Payload exceeds drone capacity" };
+  }
+
   const otp_code = String(randomInt(100000, 999999));
 
   const { data: order, error } = await supabase

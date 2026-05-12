@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, MapPin, ChevronDown, Check } from "lucide-react";
+import { Loader2, MapPin, ChevronDown, Check, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { LocationPickerDynamic } from "@/components/LocationPickerDynamic";
 import { createOrder } from "@/lib/actions/orders";
@@ -17,24 +17,40 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Drone, Patient } from "@/types/database";
 
-const schema = z.object({
-  patient_id: z.string().min(1, "Select a patient"),
-  dropoff_lat: z
-    .number({ message: "Select a location on the map" })
-    .min(-90)
-    .max(90),
-  dropoff_lng: z
-    .number({ message: "Select a location on the map" })
-    .min(-180)
-    .max(180),
-  dropoff_address: z.string().optional(),
-  payload_description: z.string().min(1, "Payload description is required"),
-  payload_weight_grams: z
-    .number({ message: "Enter a number" })
-    .min(100, "Minimum 100 g")
-    .max(1500, "Maximum 1500 g"),
-  drone_id: z.string().min(1, "Select a drone"),
-});
+const schema = z
+  .object({
+    patient_id: z.string().min(1, "Select a patient"),
+    dropoff_lat: z
+      .number({ message: "Select a location on the map" })
+      .min(-90)
+      .max(90),
+    dropoff_lng: z
+      .number({ message: "Select a location on the map" })
+      .min(-180)
+      .max(180),
+    dropoff_address: z.string().optional(),
+    payload_description: z.string().min(1, "Payload description is required"),
+    payload_weight_grams: z
+      .number({ message: "Enter a number" })
+      .min(100, "Minimum 100 g")
+      .max(1500, "Maximum 1500 g"),
+    drone_id: z.string().min(1, "Select a drone"),
+    // Hidden field to carry max_payload for cross-field validation
+    _drone_max_payload: z.number().nullable().optional(),
+    _drone_name: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data._drone_max_payload != null &&
+      data.payload_weight_grams > data._drone_max_payload
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Payload (${data.payload_weight_grams} g) exceeds ${data._drone_name ?? "this drone"}'s capacity (${data._drone_max_payload} g)`,
+        path: ["payload_weight_grams"],
+      });
+    }
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -211,6 +227,8 @@ export function NewOrderForm({
       : null
   );
 
+  const [selectedDrone, setSelectedDrone] = useState<Drone | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -221,6 +239,8 @@ export function NewOrderForm({
     resolver: zodResolver(schema),
     defaultValues: {
       patient_id: defaultPatientId ?? "",
+      _drone_max_payload: null,
+      _drone_name: "",
     },
   });
 
@@ -249,6 +269,19 @@ export function NewOrderForm({
   }
 
   const idleDrones = drones.filter((d) => d.status === "idle");
+
+  const capacityHint = !selectedDrone ? (
+    <p className="text-xs text-muted-foreground">Select a drone to see capacity</p>
+  ) : selectedDrone.max_payload_grams == null ? (
+    <p className="text-xs text-amber-600 flex items-center gap-1">
+      <AlertTriangle className="size-3 shrink-0" />
+      Drone has no weight spec configured — admin should edit it
+    </p>
+  ) : (
+    <p className="text-xs text-muted-foreground">
+      Max payload for {selectedDrone.name}: {selectedDrone.max_payload_grams} g
+    </p>
+  );
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
@@ -376,10 +409,15 @@ export function NewOrderForm({
               id="payload_weight_grams"
               type="number"
               min={100}
-              max={1500}
+              max={
+                selectedDrone?.max_payload_grams != null
+                  ? selectedDrone.max_payload_grams
+                  : 1500
+              }
               placeholder="100 – 1500"
               {...register("payload_weight_grams", { valueAsNumber: true })}
             />
+            {capacityHint}
             {errors.payload_weight_grams && (
               <p className="text-xs text-destructive">
                 {errors.payload_weight_grams.message}
@@ -398,23 +436,36 @@ export function NewOrderForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="drone_id">Drone *</Label>
-            <select
-              id="drone_id"
-              className={selectClass}
-              {...register("drone_id")}
-            >
-              <option value="">Select a drone</option>
-              {drones.map((drone) => (
-                <option
-                  key={drone.id}
-                  value={drone.id}
-                  disabled={drone.status !== "idle"}
+            <Controller
+              control={control}
+              name="drone_id"
+              render={({ field }) => (
+                <select
+                  id="drone_id"
+                  className={selectClass}
+                  value={field.value}
+                  onChange={(e) => {
+                    field.onChange(e.target.value);
+                    const drone = drones.find((d) => d.id === e.target.value) ?? null;
+                    setSelectedDrone(drone);
+                    setValue("_drone_max_payload", drone?.max_payload_grams ?? null);
+                    setValue("_drone_name", drone?.name ?? "");
+                  }}
                 >
-                  {drone.name}
-                  {drone.status !== "idle" ? ` (${drone.status})` : ""}
-                </option>
-              ))}
-            </select>
+                  <option value="">Select a drone</option>
+                  {drones.map((drone) => (
+                    <option
+                      key={drone.id}
+                      value={drone.id}
+                      disabled={drone.status !== "idle"}
+                    >
+                      {drone.name}
+                      {drone.status !== "idle" ? ` (${drone.status})` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
             {idleDrones.length === 0 && (
               <p className="text-xs text-amber-600">
                 No idle drones available. All drones are currently in use.

@@ -41,6 +41,8 @@ export interface Drone {
   name: string;
   status: DroneStatus;
   battery_pct: number | null;
+  weight_grams: number | null;
+  max_payload_grams: number | null;
   current_lat: number | null;
   current_lng: number | null;
   current_alt: number | null;

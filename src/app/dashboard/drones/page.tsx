@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getHospitalContext } from "@/lib/hospital";
 import { AddDroneDialog } from "@/components/AddDroneDialog";
+import { EditDroneDialog } from "@/components/EditDroneDialog";
 import { DroneStatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -65,6 +66,8 @@ export default async function DronesPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Battery</TableHead>
+                  <TableHead>Empty Weight</TableHead>
+                  <TableHead>Max Payload</TableHead>
                   <TableHead>Last Seen</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Actions</TableHead>
@@ -84,6 +87,12 @@ export default async function DronesPage() {
                       <BatteryBar value={drone.battery_pct} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
+                      {drone.weight_grams != null ? `${drone.weight_grams} g` : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {drone.max_payload_grams != null ? `${drone.max_payload_grams} g` : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
                       {drone.last_seen
                         ? formatDistanceToNow(new Date(drone.last_seen), {
                             addSuffix: true,
@@ -96,9 +105,7 @@ export default async function DronesPage() {
                         : "—"}
                     </TableCell>
                     <TableCell>
-                      <span className="cursor-not-allowed text-xs text-muted-foreground/50">
-                        View
-                      </span>
+                      <EditDroneDialog drone={drone} />
                     </TableCell>
                   </TableRow>
                 ))}
