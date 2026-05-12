@@ -33,8 +33,8 @@ const schema = z
     payload_description: z.string().min(1, "Payload description is required"),
     payload_weight_grams: z
       .number({ message: "Enter a number" })
-      .min(100, "Minimum 100 g")
-      .max(1500, "Maximum 1500 g"),
+      .min(100, "Payload must be at least 100 g")
+      .max(1500, "Payload must not exceed 1500 g"),
     drone_id: z.string().min(1, "Select a drone"),
     // Hidden field to carry max_payload for cross-field validation
     _drone_max_payload: z.number().nullable().optional(),
@@ -238,6 +238,7 @@ export function NewOrderForm({
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    mode: "onBlur",
     defaultValues: {
       patient_id: defaultPatientId ?? "",
       _drone_max_payload: null,
@@ -272,7 +273,7 @@ export function NewOrderForm({
   const idleDrones = drones.filter((d) => d.status === "idle");
 
   const capacityHint = !selectedDrone ? (
-    <p className="text-xs text-muted-foreground">Select a drone to see capacity</p>
+    <p className="text-xs text-muted-foreground">Payload weight: must be at least 100 g</p>
   ) : selectedDrone.max_payload_grams == null ? (
     <p className="text-xs text-amber-600 flex items-center gap-1">
       <AlertTriangle className="size-3 shrink-0" />
@@ -280,7 +281,7 @@ export function NewOrderForm({
     </p>
   ) : (
     <p className="text-xs text-muted-foreground">
-      Max payload for {selectedDrone.name}: {selectedDrone.max_payload_grams} g
+      Payload weight: 100 g to {selectedDrone.max_payload_grams} g for {selectedDrone.name}
     </p>
   );
 

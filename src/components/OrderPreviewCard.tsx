@@ -71,11 +71,16 @@ export function OrderPreviewCard({
     ? (drones.find((d) => d.id === droneId) ?? null)
     : null;
 
+  const maxPayload = drone?.max_payload_grams ?? 1500;
+
   const hasPatient = !!patient;
   const hasLocation = dropoffLat != null && !isNaN(dropoffLat);
   const hasPayloadDesc = !!payloadDesc?.trim();
   const hasPayloadWeight =
-    payloadWeight != null && !isNaN(payloadWeight) && payloadWeight >= 100;
+    payloadWeight != null &&
+    !isNaN(payloadWeight) &&
+    payloadWeight >= 100 &&
+    payloadWeight <= maxPayload;
   const hasDrone = !!drone;
 
   return (
