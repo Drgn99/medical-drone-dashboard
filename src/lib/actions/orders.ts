@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getHospitalContext } from "@/lib/hospital";
+import { sendDispatchEmail } from "@/lib/email/send";
+
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function createOrder(data: {
   patient_id: string;
@@ -66,7 +70,7 @@ export async function createOrder(data: {
 
 export async function dispatchOrder(
   orderId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; emailWarning?: true }> {
   const ctx = await getHospitalContext();
   if (!ctx) return { success: false, error: "Not authenticated" };
 
@@ -74,7 +78,11 @@ export async function dispatchOrder(
 
   const { data: order, error: fetchError } = await supabase
     .from("orders")
-    .select("id, hospital_id, drone_id, dropoff_lat, dropoff_lng, status")
+    .select(`
+      id, hospital_id, drone_id, dropoff_lat, dropoff_lng, status,
+      patient_email, patient_name, otp_code,
+      hospitals!inner(name)
+    `)
     .eq("id", orderId)
     .eq("hospital_id", ctx.hospital.id)
     .single();
@@ -104,6 +112,61 @@ export async function dispatchOrder(
   revalidatePath("/dashboard/orders");
   revalidatePath("/dashboard");
 
+  // Send notification email — failure is non-fatal
+  let emailWarning: true | undefined;
+  if (order.patient_email && order.otp_code) {
+    const hospitals = order.hospitals as unknown as { name: string } | { name: string }[] | null;
+    const hospitalName = (Array.isArray(hospitals) ? hospitals[0]?.name : hospitals?.name) ?? ctx.hospital.name;
+    const emailResult = await sendDispatchEmail({
+      to: order.patient_email,
+      patientName: order.patient_name,
+      hospitalName,
+      otp: order.otp_code,
+      trackingUrl: `${APP_URL}/track/${orderId}`,
+    });
+    if (!emailResult.ok) {
+      console.error("dispatch email failed:", emailResult.error);
+      emailWarning = true;
+    }
+  }
+
+  return { success: true, ...(emailWarning ? { emailWarning } : {}) };
+}
+
+export async function resendDispatchEmail(
+  orderId: string
+): Promise<{ success: boolean; error?: string }> {
+  const ctx = await getHospitalContext();
+  if (!ctx) return { success: false, error: "Not authenticated" };
+
+  const supabase = await createClient();
+
+  const { data: order, error: fetchError } = await supabase
+    .from("orders")
+    .select(`
+      id, hospital_id, patient_email, patient_name, otp_code, status,
+      hospitals!inner(name)
+    `)
+    .eq("id", orderId)
+    .eq("hospital_id", ctx.hospital.id)
+    .single();
+
+  if (fetchError || !order) return { success: false, error: "Order not found" };
+  if (!order.patient_email) return { success: false, error: "No patient email on record" };
+  if (!order.otp_code) return { success: false, error: "No OTP code for this order" };
+
+  const hospitals = order.hospitals as unknown as { name: string } | { name: string }[] | null;
+  const hospitalName = (Array.isArray(hospitals) ? hospitals[0]?.name : hospitals?.name) ?? ctx.hospital.name;
+
+  const emailResult = await sendDispatchEmail({
+    to: order.patient_email,
+    patientName: order.patient_name,
+    hospitalName,
+    otp: order.otp_code,
+    trackingUrl: `${APP_URL}/track/${orderId}`,
+  });
+
+  if (!emailResult.ok) return { success: false, error: emailResult.error };
   return { success: true };
 }
 

@@ -7,6 +7,7 @@ import { dispatchOrder, cancelOrder } from "@/lib/actions/orders";
 import { OrderActions } from "@/components/OrderActions";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { CopyButton } from "@/components/CopyButton";
+import { ResendEmailButton } from "@/components/ResendEmailButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Order, OrderStatus } from "@/types/database";
 import { headers } from "next/headers";
@@ -268,7 +269,7 @@ export default async function OrderDetailPage({
             <CardHeader>
               <CardTitle className="text-sm">Patient Tracking Link</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
                 <Copy className="size-4 shrink-0 text-muted-foreground" />
                 <span className="flex-1 truncate font-mono text-xs text-muted-foreground">
@@ -276,10 +277,10 @@ export default async function OrderDetailPage({
                 </span>
                 <CopyButton text={trackingUrl} />
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Send this link to the patient to track their delivery. (Patient
-                tracking page coming in Phase 3.)
+              <p className="text-xs text-muted-foreground">
+                Share this link with the patient so they can track their delivery and verify receipt with their OTP code.
               </p>
+              <ResendEmailButton orderId={id} />
             </CardContent>
           </Card>
         </div>
