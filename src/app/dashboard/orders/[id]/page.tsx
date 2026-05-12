@@ -9,6 +9,7 @@ import { OrderStatusBadge } from "@/components/StatusBadge";
 import { CopyButton } from "@/components/CopyButton";
 import { ResendEmailButton } from "@/components/ResendEmailButton";
 import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
+import { OrderStatusSubscriber } from "@/components/OrderStatusSubscriber";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Order, OrderStatus } from "@/types/database";
 import { headers } from "next/headers";
@@ -124,6 +125,8 @@ export default async function OrderDetailPage({
 
   return (
     <div className="p-6 space-y-6">
+      <OrderStatusSubscriber orderId={id} initialStatus={typedOrder.status} />
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>

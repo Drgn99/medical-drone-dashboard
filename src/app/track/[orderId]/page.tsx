@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { createClient } from "@supabase/supabase-js";
 import { TrackingMapDynamic } from "@/components/TrackingMapDynamic";
 import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
+import { OrderStatusSubscriber } from "@/components/OrderStatusSubscriber";
 import { OtpVerifier } from "@/components/OtpVerifier";
 import type { OrderStatus } from "@/types/database";
 
@@ -102,6 +103,8 @@ export default async function TrackingPage({
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <OrderStatusSubscriber orderId={order.id} initialStatus={order.status} />
+
       {/* Header */}
       <header className="border-b border-slate-200 bg-white px-4 py-4">
         <div className="mx-auto max-w-lg">
