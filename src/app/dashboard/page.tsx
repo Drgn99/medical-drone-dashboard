@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Plane, Package, Clock, Activity, Radio } from "lucide-react";
@@ -19,6 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DroneStatusBadge, OrderStatusBadge } from "@/components/StatusBadge";
+import { RechargeDroneButton } from "@/components/RechargeDroneButton";
+import { WeatherWidget } from "@/components/WeatherWidget";
 import type { Drone, Order } from "@/types/database";
 
 function BatteryBar({ value }: { value: number | null }) {
@@ -46,8 +49,12 @@ export default async function DashboardPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
   const [
-    { count: activeDrones },
+    { count: availableDrones },
+    { count: inFlightDrones },
     { count: pendingOrders },
     { count: todayOrders },
     { data: deliveredRows },
@@ -55,6 +62,13 @@ export default async function DashboardPage() {
     { data: recentOrders },
     { data: activeOrders },
   ] = await Promise.all([
+    // Available: NOT offline AND NOT maintenance
+    supabase
+      .from("drones")
+      .select("id", { count: "exact", head: true })
+      .eq("hospital_id", hospitalId)
+      .not("status", "in", "(offline,maintenance)"),
+    // In flight: in_flight, delivering, returning
     supabase
       .from("drones")
       .select("id", { count: "exact", head: true })
@@ -70,13 +84,14 @@ export default async function DashboardPage() {
       .select("id", { count: "exact", head: true })
       .eq("hospital_id", hospitalId)
       .gte("created_at", today.toISOString()),
+    // Avg delivery: orders with both dispatched_at and delivered_at in last 30 days
     supabase
       .from("orders")
       .select("dispatched_at, delivered_at")
       .eq("hospital_id", hospitalId)
-      .eq("status", "delivered")
       .not("dispatched_at", "is", null)
-      .not("delivered_at", "is", null),
+      .not("delivered_at", "is", null)
+      .gte("dispatched_at", thirtyDaysAgo.toISOString()),
     supabase
       .from("drones")
       .select("*")
@@ -96,6 +111,16 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false }),
   ]);
 
+  // Map drone_id → active order id for "View live" links
+  const droneActiveOrder = new Map<string, string>();
+  if (activeOrders) {
+    for (const o of activeOrders as { id: string; drone_id: string | null }[]) {
+      if (o.drone_id && !droneActiveOrder.has(o.drone_id)) {
+        droneActiveOrder.set(o.drone_id, o.id);
+      }
+    }
+  }
+
   let avgDelivery = "—";
   if (deliveredRows && deliveredRows.length > 0) {
     const totalMs = deliveredRows.reduce(
@@ -111,40 +136,34 @@ export default async function DashboardPage() {
     avgDelivery = `${Math.round(totalMs / deliveredRows.length / 60000)} min`;
   }
 
-  // Map drone_id → active order id for "View live" links
-  const droneActiveOrder = new Map<string, string>();
-  if (activeOrders) {
-    for (const o of activeOrders as { id: string; drone_id: string | null }[]) {
-      if (o.drone_id && !droneActiveOrder.has(o.drone_id)) {
-        droneActiveOrder.set(o.drone_id, o.id);
-      }
-    }
-  }
-
   const stats = [
     {
-      label: "Active Drones",
-      value: activeDrones ?? 0,
+      label: "Available Drones",
+      value: availableDrones ?? 0,
       icon: Plane,
       color: "text-blue-600",
+      sub: `${inFlightDrones ?? 0} in flight`,
     },
     {
       label: "Pending Orders",
       value: pendingOrders ?? 0,
       icon: Package,
       color: "text-amber-600",
+      sub: null,
     },
     {
       label: "Orders Today",
       value: todayOrders ?? 0,
       icon: Activity,
       color: "text-green-600",
+      sub: null,
     },
     {
       label: "Avg Delivery",
       value: avgDelivery,
       icon: Clock,
       color: "text-slate-600",
+      sub: null,
     },
   ];
 
@@ -162,10 +181,31 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{s.value}</p>
+              {s.sub && (
+                <p className="text-xs text-slate-500">{s.sub}</p>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Weather widget */}
+      {ctx.hospital.latitude != null && ctx.hospital.longitude != null && (
+        <Suspense
+          fallback={
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <p className="text-sm text-muted-foreground">Loading weather…</p>
+              </CardContent>
+            </Card>
+          }
+        >
+          <WeatherWidget
+            latitude={ctx.hospital.latitude}
+            longitude={ctx.hospital.longitude}
+          />
+        </Suspense>
+      )}
 
       {/* Fleet status */}
       <section>
@@ -189,15 +229,22 @@ export default async function DashboardPage() {
                       ? `Last seen ${formatDistanceToNow(new Date(drone.last_seen), { addSuffix: true })}`
                       : "Never seen"}
                   </p>
-                  {droneActiveOrder.has(drone.id) && (
-                    <Link
-                      href={`/dashboard/orders/${droneActiveOrder.get(drone.id)}`}
-                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
-                    >
-                      <Radio className="size-3" />
-                      View live
-                    </Link>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {droneActiveOrder.has(drone.id) && (
+                      <Link
+                        href={`/dashboard/orders/${droneActiveOrder.get(drone.id)}`}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
+                      >
+                        <Radio className="size-3" />
+                        View live
+                      </Link>
+                    )}
+                    <RechargeDroneButton
+                      droneId={drone.id}
+                      droneName={drone.name}
+                      droneStatus={drone.status}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             ))}

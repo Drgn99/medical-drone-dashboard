@@ -5,13 +5,15 @@ import { toast } from "sonner";
 import { Loader2, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { OrderStatus } from "@/types/database";
 
 interface Props {
@@ -70,32 +72,29 @@ export function OrderActions({ status, onDispatch, onCancel }: Props) {
             Dispatch
           </Button>
 
-          <Dialog open={dispatchOpen} onOpenChange={setDispatchOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Dispatch Order?</DialogTitle>
-                <DialogDescription>
-                  This will set the order status to &quot;dispatched&quot;, record the
-                  dispatch time, and send a goto command to the assigned drone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setDispatchOpen(false)}
-                  disabled={isPending}
-                >
+          <AlertDialog open={dispatchOpen} onOpenChange={setDispatchOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Dispatch this order?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The drone will be commanded to fly to the dropoff location.
+                  The patient will be notified by email. This action cannot be
+                  undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isPending}>
                   Cancel
-                </Button>
-                <Button onClick={handleDispatch} disabled={isPending}>
+                </AlertDialogCancel>
+                <AlertDialogAction onClick={handleDispatch} disabled={isPending}>
                   {isPending && (
                     <Loader2 className="mr-2 size-4 animate-spin" />
                   )}
-                  Confirm Dispatch
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                  Dispatch
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
 
@@ -110,24 +109,21 @@ export function OrderActions({ status, onDispatch, onCancel }: Props) {
             Cancel Order
           </Button>
 
-          <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Cancel Order?</DialogTitle>
-                <DialogDescription>
-                  This action cannot be undone. The order status will be set to
-                  &quot;cancelled&quot;.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setCancelOpen(false)}
-                  disabled={isPending}
-                >
-                  Go Back
-                </Button>
-                <Button
+          <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The order will be marked as cancelled and cannot be
+                  reactivated. If the drone is in flight, send an RTL command
+                  instead.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isPending}>
+                  Keep order
+                </AlertDialogCancel>
+                <AlertDialogAction
                   variant="destructive"
                   onClick={handleCancel}
                   disabled={isPending}
@@ -135,11 +131,11 @@ export function OrderActions({ status, onDispatch, onCancel }: Props) {
                   {isPending && (
                     <Loader2 className="mr-2 size-4 animate-spin" />
                   )}
-                  Confirm Cancel
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                  Cancel order
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>

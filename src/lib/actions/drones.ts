@@ -72,3 +72,49 @@ export async function updateDrone(
 
   return { success: true };
 }
+
+export async function rechargeDrone(
+  droneId: string
+): Promise<{ success: boolean; error?: string }> {
+  const ctx = await getHospitalContext();
+  if (!ctx) return { success: false, error: "Not authenticated" };
+
+  const supabase = await createClient();
+
+  const { data: drone, error: fetchError } = await supabase
+    .from("drones")
+    .select("id, status")
+    .eq("id", droneId)
+    .eq("hospital_id", ctx.hospital.id)
+    .single();
+
+  if (fetchError || !drone) {
+    return { success: false, error: "Drone not found" };
+  }
+
+  if (["in_flight", "delivering", "returning"].includes(drone.status)) {
+    return { success: false, error: "Cannot recharge a drone that is in flight" };
+  }
+
+  const updates: Record<string, unknown> = {
+    battery_pct: 100,
+    last_seen: new Date().toISOString(),
+  };
+
+  if (drone.status === "maintenance" || drone.status === "offline") {
+    updates.status = "idle";
+  }
+
+  const { error } = await supabase
+    .from("drones")
+    .update(updates)
+    .eq("id", droneId)
+    .eq("hospital_id", ctx.hospital.id);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/drones");
+
+  return { success: true };
+}
