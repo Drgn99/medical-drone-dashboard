@@ -33,7 +33,7 @@ const schema = z
     payload_description: z.string().min(1, "Payload description is required"),
     payload_weight_grams: z
       .number({ message: "Enter a number" })
-      .min(100, "Payload must be at least 100 g")
+      .min(10, "Payload must be at least 10 g")
       .max(1500, "Payload must not exceed 1500 g"),
     drone_id: z.string().min(1, "Select a drone"),
     // Hidden field to carry max_payload for cross-field validation
@@ -47,7 +47,7 @@ const schema = z
     ) {
       ctx.addIssue({
         code: "custom",
-        message: `Payload (${data.payload_weight_grams} g) exceeds ${data._drone_name ?? "this drone"}'s capacity (${data._drone_max_payload} g)`,
+        message: `Payload must be between 10 g and ${data._drone_max_payload} g (${data._drone_name ?? "this drone"}'s capacity)`,
         path: ["payload_weight_grams"],
       });
     }
@@ -273,7 +273,7 @@ export function NewOrderForm({
   const idleDrones = drones.filter((d) => d.status === "idle");
 
   const capacityHint = !selectedDrone ? (
-    <p className="text-xs text-muted-foreground">Payload weight: must be at least 100 g</p>
+    <p className="text-xs text-muted-foreground">Payload weight: must be at least 10 g</p>
   ) : selectedDrone.max_payload_grams == null ? (
     <p className="text-xs text-amber-600 flex items-center gap-1">
       <AlertTriangle className="size-3 shrink-0" />
@@ -281,7 +281,7 @@ export function NewOrderForm({
     </p>
   ) : (
     <p className="text-xs text-muted-foreground">
-      Payload weight: 100 g to {selectedDrone.max_payload_grams} g for {selectedDrone.name}
+      Payload weight: 10 g to {selectedDrone.max_payload_grams} g for {selectedDrone.name}
     </p>
   );
 
@@ -411,13 +411,13 @@ export function NewOrderForm({
             <Input
               id="payload_weight_grams"
               type="number"
-              min={100}
+              min={10}
               max={
                 selectedDrone?.max_payload_grams != null
                   ? selectedDrone.max_payload_grams
                   : 1500
               }
-              placeholder="100 – 1500"
+              placeholder="10 – 1500"
               {...register("payload_weight_grams", { valueAsNumber: true })}
             />
             {capacityHint}

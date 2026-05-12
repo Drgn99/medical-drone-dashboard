@@ -79,7 +79,7 @@ export function OrderPreviewCard({
   const hasPayloadWeight =
     payloadWeight != null &&
     !isNaN(payloadWeight) &&
-    payloadWeight >= 100 &&
+    payloadWeight >= 10 &&
     payloadWeight <= maxPayload;
   const hasDrone = !!drone;
 
