@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "simulator": "tsx scripts/mock-drone.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -25,6 +26,7 @@
     "react-dom": "19.2.4",
     "react-hook-form": "^7.75.0",
     "react-leaflet": "^5.0.0",
+    "resend": "^6.12.3",
     "shadcn": "^4.7.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
@@ -39,6 +41,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
