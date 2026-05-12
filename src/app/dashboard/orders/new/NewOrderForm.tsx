@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { OrderPreviewCard } from "@/components/OrderPreviewCard";
 import { cn } from "@/lib/utils";
 import type { Drone, Patient } from "@/types/database";
 
@@ -284,7 +285,8 @@ export function NewOrderForm({
   );
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+    <form onSubmit={handleSubmit(onSubmit)} className="grid gap-8 lg:grid-cols-12">
+      <div className="space-y-6 lg:col-span-7">
       {/* Patient selection — overflow-visible so the combobox dropdown can float out */}
       <Card className="overflow-visible">
         <CardContent className="space-y-4 pt-4">
@@ -484,6 +486,16 @@ export function NewOrderForm({
         {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
         Create Order
       </Button>
+      </div>
+
+      {/* Preview panel — desktop only */}
+      <div className="hidden lg:block lg:col-span-5">
+        <OrderPreviewCard
+          control={control}
+          patients={patients}
+          drones={drones}
+        />
+      </div>
     </form>
   );
 }
