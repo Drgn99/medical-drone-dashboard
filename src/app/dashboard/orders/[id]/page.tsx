@@ -8,6 +8,7 @@ import { OrderActions } from "@/components/OrderActions";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { CopyButton } from "@/components/CopyButton";
 import { ResendEmailButton } from "@/components/ResendEmailButton";
+import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Order, OrderStatus } from "@/types/database";
 import { headers } from "next/headers";
@@ -142,6 +143,36 @@ export default async function OrderDetailPage({
           <StatusTimeline status={typedOrder.status as OrderStatus} />
         </CardContent>
       </Card>
+
+      {/* Live tracking map */}
+      {typedOrder.drone_id &&
+        ctx.hospital.latitude != null &&
+        ctx.hospital.longitude != null &&
+        typedOrder.dropoff_lat != null &&
+        typedOrder.dropoff_lng != null && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Live Tracking</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LiveDroneMapDynamic
+                droneId={typedOrder.drone_id}
+                orderId={id}
+                hospitalLatLng={{
+                  lat: ctx.hospital.latitude,
+                  lng: ctx.hospital.longitude,
+                }}
+                dropoffLatLng={{
+                  lat: typedOrder.dropoff_lat,
+                  lng: typedOrder.dropoff_lng,
+                }}
+                hospitalName={ctx.hospital.name}
+                dropoffAddress={typedOrder.dropoff_address}
+                fallbackStatus={typedOrder.status}
+              />
+            </CardContent>
+          </Card>
+        )}
 
       {/* Actions */}
       <OrderActions

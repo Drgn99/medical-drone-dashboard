@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Plane, Package, Clock, Activity } from "lucide-react";
+import { Plane, Package, Clock, Activity, Radio } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getHospitalContext } from "@/lib/hospital";
 import { redirect } from "next/navigation";
@@ -53,6 +53,7 @@ export default async function DashboardPage() {
     { data: deliveredRows },
     { data: drones },
     { data: recentOrders },
+    { data: activeOrders },
   ] = await Promise.all([
     supabase
       .from("drones")
@@ -87,6 +88,12 @@ export default async function DashboardPage() {
       .eq("hospital_id", hospitalId)
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("orders")
+      .select("id, drone_id")
+      .eq("hospital_id", hospitalId)
+      .in("status", ["dispatched", "in_flight"])
+      .order("created_at", { ascending: false }),
   ]);
 
   let avgDelivery = "—";
@@ -102,6 +109,16 @@ export default async function DashboardPage() {
       0
     );
     avgDelivery = `${Math.round(totalMs / deliveredRows.length / 60000)} min`;
+  }
+
+  // Map drone_id → active order id for "View live" links
+  const droneActiveOrder = new Map<string, string>();
+  if (activeOrders) {
+    for (const o of activeOrders as { id: string; drone_id: string | null }[]) {
+      if (o.drone_id && !droneActiveOrder.has(o.drone_id)) {
+        droneActiveOrder.set(o.drone_id, o.id);
+      }
+    }
   }
 
   const stats = [
@@ -172,6 +189,15 @@ export default async function DashboardPage() {
                       ? `Last seen ${formatDistanceToNow(new Date(drone.last_seen), { addSuffix: true })}`
                       : "Never seen"}
                   </p>
+                  {droneActiveOrder.has(drone.id) && (
+                    <Link
+                      href={`/dashboard/orders/${droneActiveOrder.get(drone.id)}`}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
+                    >
+                      <Radio className="size-3" />
+                      View live
+                    </Link>
+                  )}
                 </CardContent>
               </Card>
             ))}

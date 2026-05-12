@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { createClient } from "@supabase/supabase-js";
 import { TrackingMapDynamic } from "@/components/TrackingMapDynamic";
+import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
 import { OtpVerifier } from "@/components/OtpVerifier";
 import type { OrderStatus } from "@/types/database";
 
@@ -140,7 +141,17 @@ export default async function TrackingPage({
           </p>
 
           {/* Map */}
-          {hasHospitalCoords && (
+          {hasHospitalCoords && order.drone_id ? (
+            <LiveDroneMapDynamic
+              droneId={order.drone_id}
+              orderId={order.id}
+              hospitalLatLng={{ lat: order.hospital_latitude, lng: order.hospital_longitude }}
+              dropoffLatLng={{ lat: order.dropoff_lat, lng: order.dropoff_lng }}
+              hospitalName={order.hospital_name}
+              dropoffAddress={order.dropoff_address}
+              fallbackStatus={order.status}
+            />
+          ) : hasHospitalCoords ? (
             <TrackingMapDynamic
               hospitalLat={order.hospital_latitude}
               hospitalLng={order.hospital_longitude}
@@ -149,7 +160,7 @@ export default async function TrackingPage({
               dropoffLng={order.dropoff_lng}
               dropoffAddress={order.dropoff_address}
             />
-          )}
+          ) : null}
         </div>
 
         {/* OTP verifier — shown only when drone has arrived */}
