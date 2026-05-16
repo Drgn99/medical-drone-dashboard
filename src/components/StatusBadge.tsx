@@ -49,24 +49,24 @@ const orderStatusConfig: Record<
     className: "bg-amber-100 text-amber-700 border-amber-200",
   },
   dispatched: {
-    label: "Dispatched",
+    label: "In Progress",
     className: "bg-blue-100 text-blue-700 border-blue-200",
   },
   in_flight: {
-    label: "In Flight",
+    label: "In Progress",
     className: "bg-blue-100 text-blue-700 border-blue-200",
   },
   arrived: {
-    label: "Arrived",
-    className: "bg-green-100 text-green-700 border-green-200",
+    label: "In Progress",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
   },
   delivered: {
     label: "Delivered",
-    className: "bg-slate-100 text-slate-700 border-slate-200",
+    className: "bg-green-100 text-green-700 border-green-200",
   },
   returned: {
-    label: "Returned",
-    className: "bg-slate-100 text-slate-700 border-slate-200",
+    label: "Completed",
+    className: "bg-green-100 text-green-700 border-green-200",
   },
   cancelled: {
     label: "Cancelled",

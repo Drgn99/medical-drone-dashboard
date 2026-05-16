@@ -17,11 +17,11 @@ import {
   OrdersOverTimeChart,
   OrdersByStatusChart,
   DroneUtilizationChart,
-  STATUS_COLORS,
   type DailyCount,
   type StatusSlice,
   type DroneBar,
 } from "@/components/AnalyticsCharts";
+import { STATUS_GROUPS, getStatusLabel, getStatusColor } from "@/lib/status";
 import type { OrderStatus } from "@/types/database";
 
 export default async function AnalyticsPage() {
@@ -118,31 +118,29 @@ export default async function AnalyticsPage() {
     dailyCounts.push({ date: label, count });
   }
 
-  // ── Orders by Status ───────────────────────────────────────────────────
+  // ── Orders by Status (grouped by outcome) ──────────────────────────────
 
-  const statusMap: Record<string, number> = {};
+  const groupedCounts: Record<string, number> = {};
   for (const o of orders) {
-    let key: string = o.status;
-    if (key === "delivering" || key === "returning") key = "in_flight";
-    statusMap[key] = (statusMap[key] ?? 0) + 1;
+    const group = STATUS_GROUPS[o.status];
+    const label = group?.label ?? o.status;
+    groupedCounts[label] = (groupedCounts[label] ?? 0) + 1;
   }
 
-  const STATUS_LABELS: Record<string, string> = {
-    pending: "Pending",
-    dispatched: "Dispatched",
-    in_flight: "In Flight",
-    arrived: "In Flight",
-    delivered: "Delivered",
-    returned: "Returned",
-    cancelled: "Cancelled",
-  };
+  // Find a representative status for each group label (for color lookup)
+  const groupColorMap: Record<string, string> = {};
+  for (const [status, group] of Object.entries(STATUS_GROUPS)) {
+    if (!groupColorMap[group.label]) {
+      groupColorMap[group.label] = getStatusColor(status);
+    }
+  }
 
-  const statusSlices: StatusSlice[] = Object.entries(statusMap)
-    .map(([key, count]) => ({
-      status: key,
-      label: STATUS_LABELS[key] ?? key,
+  const statusSlices: StatusSlice[] = Object.entries(groupedCounts)
+    .map(([label, count]) => ({
+      status: label.toLowerCase().replace(/\s/g, "_"),
+      label,
       count,
-      color: STATUS_COLORS[key] ?? "#94a3b8",
+      color: groupColorMap[label] ?? "#94a3b8",
     }))
     .filter((s) => s.count > 0);
 
@@ -348,20 +346,23 @@ export default async function AnalyticsPage() {
 
 function StatusPill({ status }: { status: OrderStatus }) {
   const colors: Record<string, string> = {
-    pending: "bg-slate-100 text-slate-600",
-    dispatched: "bg-amber-50 text-amber-700",
+    pending: "bg-amber-50 text-amber-700",
+    dispatched: "bg-blue-50 text-blue-700",
     in_flight: "bg-blue-50 text-blue-700",
-    arrived: "bg-indigo-50 text-indigo-700",
+    arrived: "bg-blue-50 text-blue-700",
+    delivering: "bg-blue-50 text-blue-700",
+    returning: "bg-blue-50 text-blue-700",
     delivered: "bg-green-50 text-green-700",
-    returned: "bg-slate-100 text-slate-600",
+    returned: "bg-green-50 text-green-700",
     cancelled: "bg-red-50 text-red-700",
+    failed: "bg-red-50 text-red-700",
   };
 
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] ?? colors.pending}`}
+      className={`rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] ?? "bg-slate-100 text-slate-600"}`}
     >
-      {status.replace("_", " ")}
+      {getStatusLabel(status)}
     </span>
   );
 }

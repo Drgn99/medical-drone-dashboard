@@ -36,20 +36,7 @@ export interface DroneBar {
   deliveries: number;
 }
 
-// ── Colors keyed on LOWERCASE database status values ────────────────────────
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: "#94a3b8",
-  dispatched: "#f59e0b",
-  in_flight: "#3b82f6",
-  delivering: "#3b82f6",
-  returning: "#3b82f6",
-  arrived: "#22c55e",
-  delivered: "#22c55e",
-  returned: "#64748b",
-  cancelled: "#ef4444",
-  failed: "#dc2626",
-};
+// Colors are now passed in via data[].color from src/lib/status.ts
 
 // ── Components ──────────────────────────────────────────────────────────────
 
@@ -199,4 +186,3 @@ export function DroneUtilizationChart({ data }: { data: DroneBar[] }) {
   );
 }
 
-export { STATUS_COLORS };
