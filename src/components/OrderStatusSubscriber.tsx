@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -12,6 +12,7 @@ export function OrderStatusSubscriber({
   initialStatus: string;
 }) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const statusRef = useRef(initialStatus);
 
   useEffect(() => {
@@ -31,7 +32,9 @@ export function OrderStatusSubscriber({
           const newStatus = (payload.new as { status?: string }).status;
           if (newStatus && newStatus !== statusRef.current) {
             statusRef.current = newStatus;
-            router.refresh();
+            startTransition(() => {
+              router.refresh();
+            });
           }
         }
       )
