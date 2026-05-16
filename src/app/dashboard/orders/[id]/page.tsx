@@ -11,6 +11,7 @@ import { ResendEmailButton } from "@/components/ResendEmailButton";
 import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
 import { OrderStatusSubscriber } from "@/components/OrderStatusSubscriber";
 import { SimulatorCommandCard } from "@/components/SimulatorCommandCard";
+import { DroneCameraFeed } from "@/components/DroneCameraFeed";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getStatusLabel } from "@/lib/status";
 import type { Order, OrderStatus } from "@/types/database";
@@ -194,6 +195,12 @@ export default async function OrderDetailPage({
             </CardContent>
           </Card>
         )}
+
+      {/* Camera feed */}
+      <DroneCameraFeed
+        orderStatus={typedOrder.status}
+        droneName={typedOrder.drones?.name ?? undefined}
+      />
 
       {/* Actions */}
       <OrderActions

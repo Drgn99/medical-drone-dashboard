@@ -5,6 +5,7 @@ import { TrackingMapDynamic } from "@/components/TrackingMapDynamic";
 import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
 import { OrderStatusSubscriber } from "@/components/OrderStatusSubscriber";
 import { OtpVerifier } from "@/components/OtpVerifier";
+import { DroneCameraFeed } from "@/components/DroneCameraFeed";
 import type { OrderStatus } from "@/types/database";
 
 interface PublicOrder {
@@ -171,6 +172,9 @@ export default async function TrackingPage({
             />
           ) : null}
         </div>
+
+        {/* Camera feed */}
+        <DroneCameraFeed orderStatus={order.status} />
 
         {/* OTP verifier — shown only when drone has arrived */}
         {order.status === "arrived" && (
