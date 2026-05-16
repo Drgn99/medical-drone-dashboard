@@ -8,6 +8,7 @@ import {
   Plane,
   Package,
   PlusCircle,
+  BarChart3,
   Settings,
   Menu,
   X,
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/dashboard/patients", label: "Patients", icon: Users },
   { href: "/dashboard/orders", label: "Orders", icon: Package, exact: true },
   { href: "/dashboard/orders/new", label: "New Order", icon: PlusCircle },
+  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
