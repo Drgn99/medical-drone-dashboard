@@ -64,6 +64,10 @@ const orderStatusConfig: Record<
     label: "Delivered",
     className: "bg-green-100 text-green-700 border-green-200",
   },
+  returning: {
+    label: "Returning",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
+  },
   returned: {
     label: "Completed",
     className: "bg-green-100 text-green-700 border-green-200",

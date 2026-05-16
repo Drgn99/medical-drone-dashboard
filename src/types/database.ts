@@ -14,6 +14,7 @@ export type OrderStatus =
   | "in_flight"
   | "arrived"
   | "delivered"
+  | "returning"
   | "returned"
   | "cancelled";
 

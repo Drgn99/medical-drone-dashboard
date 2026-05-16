@@ -16,19 +16,26 @@ import { getStatusLabel } from "@/lib/status";
 import type { Order, OrderStatus } from "@/types/database";
 import { headers } from "next/headers";
 
-const TIMELINE: { status: OrderStatus; label: string }[] = [
+const TIMELINE: { status: OrderStatus | OrderStatus[]; label: string }[] = [
   { status: "pending", label: "Pending" },
   { status: "dispatched", label: "Dispatched" },
-  { status: "in_flight", label: "En Route" },
+  { status: ["in_flight", "delivering"] as OrderStatus[], label: "En Route" },
   { status: "arrived", label: "Arrived" },
   { status: "delivered", label: "Delivered" },
+  { status: "returning", label: "Returning" },
+  { status: "returned", label: "Completed" },
 ];
 
+function statusMatchesStep(
+  orderStatus: OrderStatus,
+  stepStatus: OrderStatus | OrderStatus[]
+): boolean {
+  if (Array.isArray(stepStatus)) return stepStatus.includes(orderStatus);
+  return orderStatus === stepStatus;
+}
+
 function StatusTimeline({ status }: { status: OrderStatus }) {
-  // "returned" = success (drone delivered AND came home). Show full timeline completed.
-  const effectiveStatus = status === "returned" ? "delivered" : status;
   const isCancelled = status === "cancelled";
-  const currentIndex = TIMELINE.findIndex((s) => s.status === effectiveStatus);
 
   if (isCancelled) {
     return (
@@ -40,62 +47,57 @@ function StatusTimeline({ status }: { status: OrderStatus }) {
     );
   }
 
-  // Show "Completed" badge for returned orders alongside the full timeline
-  const showCompletedBadge = status === "returned";
+  const currentIndex = TIMELINE.findIndex((s) =>
+    statusMatchesStep(status, s.status)
+  );
+  const isComplete = status === "returned";
 
   return (
-    <div className="flex items-center gap-3">
-      <ol className="flex items-center gap-0">
-        {TIMELINE.map((step, i) => {
-          const isDone = i < currentIndex || showCompletedBadge;
-          const isCurrent = !showCompletedBadge && i === currentIndex;
-          const isLast = i === TIMELINE.length - 1;
-          return (
-            <li key={step.status} className="flex items-center">
-              <div className="flex flex-col items-center gap-1">
-                <div
-                  className={[
-                    "flex size-7 items-center justify-center rounded-full text-xs font-bold",
-                    isCurrent
-                      ? "bg-blue-600 text-white"
-                      : isDone
-                      ? "bg-green-200 text-green-700"
-                      : "bg-slate-100 text-slate-400",
-                  ].join(" ")}
-                >
-                  {i + 1}
-                </div>
-                <span
-                  className={[
-                    "text-xs whitespace-nowrap",
-                    isCurrent
-                      ? "font-semibold text-blue-600"
-                      : isDone
-                      ? "text-green-600"
-                      : "text-muted-foreground",
-                  ].join(" ")}
-                >
-                  {step.label}
-                </span>
+    <ol className="flex flex-wrap items-center gap-0">
+      {TIMELINE.map((step, i) => {
+        const isDone = isComplete || i < currentIndex;
+        const isCurrent = !isComplete && i === currentIndex;
+        const isLast = i === TIMELINE.length - 1;
+        return (
+          <li key={step.label} className="flex items-center">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={[
+                  "flex size-6 sm:size-7 items-center justify-center rounded-full text-xs font-bold",
+                  isCurrent
+                    ? "bg-blue-600 text-white"
+                    : isDone
+                    ? "bg-green-200 text-green-700"
+                    : "bg-slate-100 text-slate-400",
+                ].join(" ")}
+              >
+                {i + 1}
               </div>
-              {!isLast && (
-                <div
-                  className={[
-                    "mx-1 h-0.5 w-8",
-                    isDone ? "bg-green-300" : "bg-slate-200",
-                  ].join(" ")}
-                />
-              )}
-            </li>
-          );
-        })}
-      </ol>
-      {showCompletedBadge && (
-        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-          ✓ Completed
-        </span>
-      )}
-    </div>
+              <span
+                className={[
+                  "text-[10px] sm:text-xs whitespace-nowrap",
+                  isCurrent
+                    ? "font-semibold text-blue-600"
+                    : isDone
+                    ? "text-green-600"
+                    : "text-muted-foreground",
+                ].join(" ")}
+              >
+                {step.label}
+              </span>
+            </div>
+            {!isLast && (
+              <div
+                className={[
+                  "mx-0.5 sm:mx-1 h-0.5 w-4 sm:w-8",
+                  isDone ? "bg-green-300" : "bg-slate-200",
+                ].join(" ")}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

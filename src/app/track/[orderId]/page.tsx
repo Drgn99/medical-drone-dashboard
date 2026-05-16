@@ -55,6 +55,12 @@ const STATUS_META: Record<
     text: "text-green-700",
     description: "Delivery complete. Thank you!",
   },
+  returning: {
+    label: "In Progress",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    description: "Your drone is on its way back to the hospital.",
+  },
   returned: {
     label: "Completed",
     bg: "bg-green-100",

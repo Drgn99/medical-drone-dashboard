@@ -344,7 +344,9 @@ async function main() {
 
   // ── Return flight ───────────────────────────────────────────────────────
 
+  await updateOrderStatus(orderId, "returning");
   await updateDroneStatus(droneId, "returning");
+  log("Status: delivered → returning, beginning return flight");
 
   for (let i = 0; i < TICKS; i++) {
     if (aborted) return;

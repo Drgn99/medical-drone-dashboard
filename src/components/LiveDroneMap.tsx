@@ -80,7 +80,7 @@ interface Props {
   fallbackStatus?: string;
 }
 
-const TERMINAL_STATUSES = ["delivered", "returned", "cancelled"];
+const TERMINAL_STATUSES = ["returned", "cancelled"];
 
 // ── Inner map controller ────────────────────────────────────────────────────
 
