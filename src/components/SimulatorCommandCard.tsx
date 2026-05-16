@@ -6,7 +6,7 @@ import { Terminal, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-const ACTIVE_STATUSES = ["dispatched", "in_flight", "delivering", "arrived"];
+const TERMINAL_STATUSES = ["delivered", "returned", "cancelled", "failed"];
 
 export function SimulatorCommandCard({
   orderId,
@@ -17,7 +17,7 @@ export function SimulatorCommandCard({
 }) {
   const [copied, setCopied] = useState(false);
 
-  if (!ACTIVE_STATUSES.includes(orderStatus)) return null;
+  if (TERMINAL_STATUSES.includes(orderStatus)) return null;
 
   const command = `npm run simulator -- ${orderId}`;
 
