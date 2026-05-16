@@ -212,28 +212,32 @@ export default async function AnalyticsPage() {
       label: "Total Orders",
       value: totalOrders,
       icon: Package,
-      color: "text-blue-600",
+      iconColor: "text-blue-600",
+      iconBg: "bg-blue-50",
       sub: comparison(totalOrders, prevTotal),
     },
     {
       label: "Successful Deliveries",
       value: successfulDeliveries,
       icon: CheckCircle2,
-      color: "text-green-600",
+      iconColor: "text-green-600",
+      iconBg: "bg-green-50",
       sub: comparison(successfulDeliveries, prevDeliveries),
     },
     {
       label: "Delivery Rate",
       value: deliveryRate != null ? `${deliveryRate}%` : "—",
       icon: TrendingUp,
-      color: "text-amber-600",
+      iconColor: "text-amber-600",
+      iconBg: "bg-amber-50",
       sub: null,
     },
     {
       label: "Avg Delivery Time",
       value: avgDeliveryMin != null ? `${avgDeliveryMin} min` : "—",
       icon: Clock,
-      color: "text-slate-600",
+      iconColor: "text-slate-600",
+      iconBg: "bg-slate-100",
       sub: null,
     },
   ];
@@ -265,7 +269,9 @@ export default async function AnalyticsPage() {
                 <p className="text-xs font-medium text-muted-foreground">
                   {s.label}
                 </p>
-                <s.icon className={`size-4 ${s.color}`} />
+                <div className={`rounded-full p-2 ${s.iconBg}`}>
+                  <s.icon className={`size-4 ${s.iconColor}`} />
+                </div>
               </div>
               <p className="mt-1 text-2xl font-bold">{s.value}</p>
               {s.sub ? (

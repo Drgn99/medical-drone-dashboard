@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -21,7 +21,7 @@ import { AnalyticsChartCard } from "@/components/AnalyticsChartCard";
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export interface DailyCount {
-  date: string; // "May 1", "May 2" etc.
+  date: string;
   count: number;
 }
 
@@ -45,6 +45,7 @@ const STATUS_COLORS: Record<string, string> = {
   Delivered: "#22c55e",
   Returned: "#64748b",
   Cancelled: "#ef4444",
+  Failed: "#dc2626",
 };
 
 // ── Components ──────────────────────────────────────────────────────────────
@@ -54,7 +55,7 @@ export function OrdersOverTimeChart({ data }: { data: DailyCount[] }) {
     <AnalyticsChartCard title="Orders Over Time">
       <div style={{ height: 280 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+          <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
@@ -72,16 +73,18 @@ export function OrdersOverTimeChart({ data }: { data: DailyCount[] }) {
               contentStyle={{ fontSize: 12, borderRadius: 8 }}
               labelStyle={{ fontWeight: 600 }}
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="count"
-              stroke="#3b82f6"
+              stroke="#2563eb"
               strokeWidth={2}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
+              fill="#3b82f6"
+              fillOpacity={0.1}
+              dot={{ r: 4, fill: "#2563eb", stroke: "#ffffff", strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: "#2563eb", stroke: "#ffffff", strokeWidth: 2 }}
               name="Orders"
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </AnalyticsChartCard>
@@ -102,7 +105,7 @@ export function OrdersByStatusChart({
           <PieChart>
             <Pie
               data={data}
-              cx="50%"
+              cx="40%"
               cy="50%"
               innerRadius={60}
               outerRadius={90}
@@ -111,8 +114,8 @@ export function OrdersByStatusChart({
               nameKey="name"
               label={false}
             >
-              {data.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
             </Pie>
             <Legend
@@ -124,33 +127,29 @@ export function OrdersByStatusChart({
               formatter={(value: string) => {
                 const slice = data.find((d) => d.name === value);
                 return (
-                  <span className="text-xs text-slate-700">
+                  <span style={{ fontSize: 12, color: "#334155" }}>
                     {value} ({slice?.value ?? 0})
                   </span>
                 );
               }}
             />
-            <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-            />
+            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
             {/* Center label */}
             <text
-              x="50%"
-              y="48%"
+              x="40%"
+              y="46%"
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-slate-900 text-2xl font-bold"
-              style={{ fontSize: 24, fontWeight: 700 }}
+              style={{ fontSize: 28, fontWeight: 600, fill: "#0f172a" }}
             >
               {total}
             </text>
             <text
-              x="50%"
+              x="40%"
               y="58%"
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-slate-500 text-xs"
-              style={{ fontSize: 11 }}
+              style={{ fontSize: 11, fill: "#64748b" }}
             >
               total
             </text>
@@ -182,7 +181,7 @@ export function DroneUtilizationChart({ data }: { data: DroneBar[] }) {
               width={100}
             />
             <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-            <Bar dataKey="deliveries" fill="#3b82f6" radius={[0, 4, 4, 0]}>
+            <Bar dataKey="deliveries" fill="#2563eb" radius={[0, 4, 4, 0]}>
               <LabelList
                 dataKey="deliveries"
                 position="right"
