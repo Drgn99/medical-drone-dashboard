@@ -10,6 +10,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { ResendEmailButton } from "@/components/ResendEmailButton";
 import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
 import { OrderStatusSubscriber } from "@/components/OrderStatusSubscriber";
+import { SimulatorCommandCard } from "@/components/SimulatorCommandCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Order, OrderStatus } from "@/types/database";
 import { headers } from "next/headers";
@@ -146,6 +147,9 @@ export default async function OrderDetailPage({
           <StatusTimeline status={typedOrder.status as OrderStatus} />
         </CardContent>
       </Card>
+
+      {/* Simulator helper (demo only — visible for active orders) */}
+      <SimulatorCommandCard orderId={id} orderStatus={typedOrder.status} />
 
       {/* Live tracking map */}
       {typedOrder.drone_id &&
