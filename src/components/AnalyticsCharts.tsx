@@ -11,7 +11,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
   BarChart,
   Bar,
   LabelList,
@@ -26,8 +25,9 @@ export interface DailyCount {
 }
 
 export interface StatusSlice {
-  name: string;
-  value: number;
+  status: string;
+  label: string;
+  count: number;
   color: string;
 }
 
@@ -36,16 +36,19 @@ export interface DroneBar {
   deliveries: number;
 }
 
-// ── Colors ──────────────────────────────────────────────────────────────────
+// ── Colors keyed on LOWERCASE database status values ────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
-  Pending: "#94a3b8",
-  Dispatched: "#f59e0b",
-  "In Flight": "#3b82f6",
-  Delivered: "#22c55e",
-  Returned: "#64748b",
-  Cancelled: "#ef4444",
-  Failed: "#dc2626",
+  pending: "#94a3b8",
+  dispatched: "#f59e0b",
+  in_flight: "#3b82f6",
+  delivering: "#3b82f6",
+  returning: "#3b82f6",
+  arrived: "#22c55e",
+  delivered: "#22c55e",
+  returned: "#64748b",
+  cancelled: "#ef4444",
+  failed: "#dc2626",
 };
 
 // ── Components ──────────────────────────────────────────────────────────────
@@ -100,61 +103,62 @@ export function OrdersByStatusChart({
 }) {
   return (
     <AnalyticsChartCard title="Orders by Status">
-      <div style={{ height: 280 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="40%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={90}
-              paddingAngle={2}
-              dataKey="value"
-              nameKey="name"
-              label={false}
-            >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Legend
-              layout="vertical"
-              align="right"
-              verticalAlign="middle"
-              iconType="circle"
-              iconSize={8}
-              formatter={(value: string) => {
-                const slice = data.find((d) => d.name === value);
-                return (
-                  <span style={{ fontSize: 12, color: "#334155" }}>
-                    {value} ({slice?.value ?? 0})
-                  </span>
-                );
-              }}
-            />
-            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-            {/* Center label */}
-            <text
-              x="40%"
-              y="46%"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              style={{ fontSize: 28, fontWeight: 600, fill: "#0f172a" }}
-            >
-              {total}
-            </text>
-            <text
-              x="40%"
-              y="58%"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              style={{ fontSize: 11, fill: "#64748b" }}
-            >
-              total
-            </text>
-          </PieChart>
-        </ResponsiveContainer>
+      <div style={{ height: 280 }} className="flex items-center">
+        <div className="flex-1" style={{ height: "100%" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={2}
+                dataKey="count"
+                nameKey="label"
+                label={false}
+              >
+                {data.map((entry) => (
+                  <Cell key={entry.status} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              {/* Center label */}
+              <text
+                x="50%"
+                y="46%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                style={{ fontSize: 28, fontWeight: 600, fill: "#0f172a" }}
+              >
+                {total}
+              </text>
+              <text
+                x="50%"
+                y="58%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                style={{ fontSize: 11, fill: "#64748b" }}
+              >
+                total
+              </text>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Custom legend with explicit colors */}
+        <div className="flex flex-col gap-1.5 pr-2">
+          {data.map((entry) => (
+            <div key={entry.status} className="flex items-center gap-2">
+              <span
+                className="inline-block size-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-xs text-slate-700">
+                {entry.label} ({entry.count})
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </AnalyticsChartCard>
   );

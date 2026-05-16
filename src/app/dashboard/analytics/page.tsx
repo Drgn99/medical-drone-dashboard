@@ -138,12 +138,13 @@ export default async function AnalyticsPage() {
   };
 
   const statusSlices: StatusSlice[] = Object.entries(statusMap)
-    .map(([key, value]) => ({
-      name: STATUS_LABELS[key] ?? key,
-      value,
-      color: STATUS_COLORS[STATUS_LABELS[key] ?? key] ?? "#94a3b8",
+    .map(([key, count]) => ({
+      status: key,
+      label: STATUS_LABELS[key] ?? key,
+      count,
+      color: STATUS_COLORS[key] ?? "#94a3b8",
     }))
-    .filter((s) => s.value > 0);
+    .filter((s) => s.count > 0);
 
   // ── Drone Utilization ──────────────────────────────────────────────────
 
