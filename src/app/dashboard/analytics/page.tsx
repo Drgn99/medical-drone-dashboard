@@ -349,7 +349,7 @@ function StatusPill({ status }: { status: OrderStatus }) {
     pending: "bg-amber-50 text-amber-700",
     dispatched: "bg-blue-50 text-blue-700",
     in_flight: "bg-blue-50 text-blue-700",
-    arrived: "bg-blue-50 text-blue-700",
+    arrived: "bg-green-50 text-green-700",
     delivering: "bg-blue-50 text-blue-700",
     returning: "bg-blue-50 text-blue-700",
     delivered: "bg-green-50 text-green-700",

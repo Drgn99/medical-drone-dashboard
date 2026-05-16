@@ -57,8 +57,8 @@ const orderStatusConfig: Record<
     className: "bg-blue-100 text-blue-700 border-blue-200",
   },
   arrived: {
-    label: "In Progress",
-    className: "bg-blue-100 text-blue-700 border-blue-200",
+    label: "Arrived",
+    className: "bg-green-100 text-green-700 border-green-200",
   },
   delivered: {
     label: "Delivered",
