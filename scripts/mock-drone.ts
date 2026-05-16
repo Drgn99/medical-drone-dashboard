@@ -344,9 +344,20 @@ async function main() {
 
   // ── Return flight ───────────────────────────────────────────────────────
 
-  await updateOrderStatus(orderId, "returning");
+  // Explicitly set returning status — verify it succeeded
+  const { error: returningErr } = await supabase
+    .from("orders")
+    .update({ status: "returning" })
+    .eq("id", orderId);
+
+  if (returningErr) {
+    log(`  ⚠ Failed to set status returning: ${returningErr.message}`);
+  } else {
+    log("Status: delivered → returning");
+  }
+
   await updateDroneStatus(droneId, "returning");
-  log("Status: delivered → returning, beginning return flight");
+  await sleep(1000); // Let Realtime propagate before first telemetry tick
 
   for (let i = 0; i < TICKS; i++) {
     if (aborted) return;
