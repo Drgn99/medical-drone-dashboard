@@ -32,11 +32,11 @@ export function OrderFilters() {
       >
         <option value="all">All statuses</option>
         <option value="pending">Pending</option>
-        <option value="dispatched">Dispatched</option>
-        <option value="in_flight">In Flight</option>
-        <option value="arrived">Arrived</option>
+        <option value="dispatched">In Progress</option>
+        <option value="in_flight">In Progress (En Route)</option>
+        <option value="arrived">In Progress (Arrived)</option>
         <option value="delivered">Delivered</option>
-        <option value="returned">Returned</option>
+        <option value="returned">Completed</option>
         <option value="cancelled">Cancelled</option>
       </select>
 

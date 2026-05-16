@@ -20,7 +20,7 @@ const droneStatusConfig: Record<
   },
   delivering: {
     label: "Delivering",
-    className: "bg-green-100 text-green-700 border-green-200",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
   },
   returning: {
     label: "Returning",
@@ -28,7 +28,7 @@ const droneStatusConfig: Record<
   },
   arrived: {
     label: "Arrived",
-    className: "bg-green-100 text-green-700 border-green-200",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
   },
   maintenance: {
     label: "Maintenance",
