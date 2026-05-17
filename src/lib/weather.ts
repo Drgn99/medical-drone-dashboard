@@ -71,11 +71,52 @@ export function weatherIconColor(icon: WeatherIconName): string {
   }
 }
 
+// ── Weather code validation ─────────────────────────────────────────────────
+
+function validateWeatherCode(
+  code: number,
+  tempC: number,
+  humidity: number
+): { code: number; overrideReason: string | null } {
+  // Thunderstorm (95) or with hail (96, 99) requires humid, unstable
+  // conditions. High temp + low humidity → almost certainly not real.
+  if ([95, 96, 99].includes(code) && tempC > 30 && humidity < 70) {
+    return {
+      code: 1,
+      overrideReason:
+        "Thunderstorm reported but humidity too low to be plausible",
+    };
+  }
+
+  // Heavy rain (65) and heavy showers (82) also need humid air.
+  if ([65, 82].includes(code) && tempC > 35 && humidity < 50) {
+    return {
+      code: 1,
+      overrideReason:
+        "Heavy precipitation reported but conditions inconsistent",
+    };
+  }
+
+  // Snow codes (71-77, 85-86) make no sense above 5°C.
+  if (code >= 71 && code <= 86 && tempC > 5) {
+    return {
+      code: 1,
+      overrideReason: "Snow reported but temperature too high",
+    };
+  }
+
+  return { code, overrideReason: null };
+}
+
+// ── Public API ──────────────────────────────────────────────────────────────
+
 export interface CurrentWeather {
   temperature: number;
   windSpeed: number;
   humidity: number;
   weatherCode: number;
+  rawWeatherCode: number;
+  overrideReason: string | null;
   isDay: boolean;
 }
 
@@ -93,11 +134,20 @@ export async function getCurrentWeather(
     const c = data?.current;
     if (!c) return null;
 
+    const apiCode = c.weather_code as number;
+    const validation = validateWeatherCode(
+      apiCode,
+      c.temperature_2m,
+      c.relative_humidity_2m
+    );
+
     return {
       temperature: c.temperature_2m,
       windSpeed: c.wind_speed_10m,
       humidity: c.relative_humidity_2m,
-      weatherCode: c.weather_code,
+      weatherCode: validation.code,
+      rawWeatherCode: apiCode,
+      overrideReason: validation.overrideReason,
       isDay: c.is_day === 1,
     };
   } catch {

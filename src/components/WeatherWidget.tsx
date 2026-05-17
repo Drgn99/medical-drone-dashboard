@@ -51,6 +51,12 @@ export async function WeatherWidget({
     );
   }
 
+  if (weather.overrideReason) {
+    console.log(
+      `[WeatherWidget] Code override: ${weather.rawWeatherCode} → ${weather.weatherCode} (${weather.overrideReason})`
+    );
+  }
+
   const iconName = weatherCodeToIcon(weather.weatherCode, weather.isDay);
   const WeatherIcon = ICONS[iconName];
   const iconColor = weatherIconColor(iconName);
@@ -98,6 +104,8 @@ export async function WeatherWidget({
                   : "\u2713"}{" "}
               {windSafety.text}
             </div>
+
+            <p className="text-xs italic text-slate-400">Data verified</p>
           </div>
 
           {/* Right: icon + clock */}
