@@ -33,6 +33,10 @@ export interface HospitalStaff {
   user_id: string;
   full_name: string | null;
   role: string;
+  status: "pending" | "active" | "rejected";
+  requested_at: string | null;
+  decided_at: string | null;
+  decided_by: string | null;
   created_at: string;
 }
 

@@ -20,6 +20,7 @@ export async function getHospitalContext(): Promise<HospitalContext | null> {
     .from("hospital_staff")
     .select("id, role, full_name, hospital_id")
     .eq("user_id", user.id)
+    .eq("status", "active")
     .single();
 
   if (staffError) {

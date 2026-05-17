@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import { format } from "date-fns";
-import { Settings, Building2, Users } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { Settings, Building2, Users, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getHospitalContext } from "@/lib/hospital";
-import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -13,22 +12,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PendingRequestActions } from "@/components/PendingRequestActions";
+import { InviteStaffDialog } from "@/components/InviteStaffDialog";
 import type { HospitalStaff } from "@/types/database";
 
 export default async function SettingsPage() {
   const ctx = await getHospitalContext();
   if (!ctx) redirect("/login");
 
+  const isAdmin = ctx.staff.role === "admin";
+
   const supabase = await createClient();
-  const { data: staffList, error: staffError } = await supabase
+
+  // Fetch all staff rows — admins see everything, staff see only active
+  const staffQuery = supabase
     .from("hospital_staff")
-    .select("id, user_id, full_name, role, created_at")
+    .select("*")
     .eq("hospital_id", ctx.hospital.id)
     .order("created_at");
+
+  const { data: allStaff, error: staffError } = await staffQuery;
 
   if (staffError) {
     console.error("hospital_staff list failed:", staffError);
   }
+
+  const staffList = (allStaff ?? []) as HospitalStaff[];
+  const activeStaff = staffList.filter((s) => s.status === "active");
+  const pendingRequests = staffList.filter((s) => s.status === "pending");
+  const rejectedRequests = staffList.filter((s) => s.status === "rejected");
 
   const h = ctx.hospital;
 
@@ -60,24 +72,60 @@ export default async function SettingsPage() {
         </Card>
       </section>
 
+      {/* Pending Requests — admin only, only when there are pending items */}
+      {isAdmin && pendingRequests.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-amber-600">
+            <Clock className="size-4" /> Pending Access Requests
+          </h2>
+          <Card className="border-amber-200">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Full Name</TableHead>
+                    <TableHead>Requested</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingRequests.map((req) => (
+                    <TableRow key={req.id}>
+                      <TableCell className="font-medium">
+                        {req.full_name ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {req.requested_at
+                          ? formatDistanceToNow(new Date(req.requested_at), {
+                              addSuffix: true,
+                            })
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <PendingRequestActions
+                          staffId={req.id}
+                          staffName={req.full_name ?? "this user"}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
       {/* Team section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             <Users className="size-4" /> Team
           </h2>
-          <button
-            disabled
-            className={buttonVariants({
-              variant: "outline",
-              className: "cursor-not-allowed opacity-50",
-            })}
-          >
-            Invite Staff
-          </button>
+          {isAdmin && <InviteStaffDialog />}
         </div>
 
-        {staffList && staffList.length > 0 ? (
+        {activeStaff.length > 0 ? (
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -90,7 +138,7 @@ export default async function SettingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(staffList as HospitalStaff[]).map((member, i) => (
+                  {activeStaff.map((member, i) => (
                     <TableRow
                       key={member.id}
                       className={i % 2 === 1 ? "bg-slate-50/50" : ""}
@@ -114,12 +162,6 @@ export default async function SettingsPage() {
                   ))}
                 </TableBody>
               </Table>
-              <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-                Staff email addresses require a{" "}
-                <code className="rounded bg-muted px-1">SECURITY DEFINER</code>{" "}
-                SQL function to expose{" "}
-                <code className="rounded bg-muted px-1">auth.users</code> safely.
-              </p>
             </CardContent>
           </Card>
         ) : (
@@ -130,6 +172,49 @@ export default async function SettingsPage() {
           </Card>
         )}
       </section>
+
+      {/* Rejected — admin only, collapsible info */}
+      {isAdmin && rejectedRequests.length > 0 && (
+        <section className="space-y-4">
+          <details>
+            <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Rejected Requests ({rejectedRequests.length})
+            </summary>
+            <Card className="mt-3">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Full Name</TableHead>
+                      <TableHead>Requested</TableHead>
+                      <TableHead>Decided</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rejectedRequests.map((req) => (
+                      <TableRow key={req.id}>
+                        <TableCell className="font-medium text-muted-foreground">
+                          {req.full_name ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {req.requested_at
+                            ? format(new Date(req.requested_at), "dd MMM yyyy")
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {req.decided_at
+                            ? format(new Date(req.decided_at), "dd MMM yyyy")
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </details>
+        </section>
+      )}
     </div>
   );
 }
