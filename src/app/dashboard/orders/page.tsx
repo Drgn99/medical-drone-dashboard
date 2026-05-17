@@ -144,23 +144,25 @@ export default async function OrdersPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
-          <Package className="mb-3 size-8 text-muted-foreground/40" />
-          <p className="font-medium text-muted-foreground">No orders found</p>
-          <p className="mt-1 text-sm text-muted-foreground/60">
-            {status || range
-              ? "Try adjusting your filters."
-              : "Create your first order to get started."}
-          </p>
-          {!status && !range && (
-            <Link
-              href="/dashboard/orders/new"
-              className={buttonVariants({ variant: "default", className: "mt-4" })}
-            >
-              Create First Order
-            </Link>
-          )}
-        </div>
+        <Card className="mx-auto max-w-md my-12">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Package className="mb-4 size-12 text-slate-300" />
+            <p className="text-lg font-semibold">No orders yet</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {status || range
+                ? "Try adjusting your filters."
+                : "Dispatch your first medical delivery from the New Order page."}
+            </p>
+            {!status && !range && (
+              <Link
+                href="/dashboard/orders/new"
+                className={buttonVariants({ variant: "default", className: "mt-4" })}
+              >
+                Create First Order
+              </Link>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -53,32 +53,49 @@ export function SidebarNavLinks({
   const nav = (
     <div className="flex h-full flex-col">
       <div className="border-b border-slate-700 p-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-          Medical Drone
-        </p>
+        <div className="flex items-center gap-2">
+          <Plane className="size-5 text-slate-300" />
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+            Medical Drone
+          </p>
+        </div>
         <p className="mt-1 truncate text-sm font-medium text-white">
           {hospitalName}
         </p>
       </div>
 
       <nav className="flex-1 space-y-0.5 p-3">
-        {navItems.map(({ href, label, icon: Icon, exact }) => (
-          <Link
-            key={href}
-            href={href}
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              isActive(href, exact)
-                ? "bg-slate-700 text-white"
-                : "text-slate-400 hover:bg-slate-800 hover:text-white"
-            )}
-          >
-            <Icon className="size-4 shrink-0" />
-            {label}
-          </Link>
-        ))}
+        {navItems.map(({ href, label, icon: Icon, exact }) => {
+          const active = isActive(href, exact);
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                active
+                  ? "border-l-4 border-blue-500 bg-slate-800 pl-2 text-white"
+                  : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+              )}
+            >
+              <Icon
+                className={cn(
+                  "size-4 shrink-0",
+                  active ? "text-slate-200" : ""
+                )}
+              />
+              {label}
+            </Link>
+          );
+        })}
       </nav>
+
+      <div className="border-t border-slate-800 px-4 py-2">
+        <p className="text-[10px] text-slate-500">
+          UTAS Muscat · v0.1 · Phase A
+        </p>
+      </div>
 
       <div className="border-t border-slate-700 p-4">
         <p className="truncate text-xs text-slate-400">{userEmail}</p>
@@ -110,6 +127,7 @@ export function SidebarNavLinks({
           <Menu className="size-5" />
           <span className="sr-only">Open menu</span>
         </button>
+        <Plane className="size-4 text-slate-400" />
         <p className="text-sm font-medium text-white">{hospitalName}</p>
       </div>
 

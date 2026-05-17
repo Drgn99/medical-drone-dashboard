@@ -118,23 +118,30 @@ export default async function PatientsPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
-          <Users className="mb-3 size-8 text-muted-foreground/40" />
-          <p className="font-medium text-muted-foreground">
-            {q ? "No patients match your search." : "No patients yet."}
-          </p>
-          {!q && (
-            <Link
-              href="/dashboard/patients/new"
-              className={buttonVariants({
-                variant: "default",
-                className: "mt-4",
-              })}
-            >
-              Add First Patient
-            </Link>
-          )}
-        </div>
+        <Card className="mx-auto max-w-md my-12">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Users className="mb-4 size-12 text-slate-300" />
+            <p className="text-lg font-semibold">
+              {q ? "No patients match your search" : "No patients registered"}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {q
+                ? "Try a different search term."
+                : "Add your first patient to start dispatching orders."}
+            </p>
+            {!q && (
+              <Link
+                href="/dashboard/patients/new"
+                className={buttonVariants({
+                  variant: "default",
+                  className: "mt-4",
+                })}
+              >
+                Add First Patient
+              </Link>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

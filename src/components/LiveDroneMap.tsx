@@ -304,7 +304,7 @@ export default function LiveDroneMap({
   const [connected, setConnected] = useState(false);
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-slate-200 h-[250px] sm:h-[400px]">
+    <div className="relative overflow-hidden rounded-xl border border-slate-200 h-[240px] sm:h-[320px] lg:h-[400px]">
       <MapContainer
         center={[hospitalLatLng.lat, hospitalLatLng.lng]}
         zoom={11}

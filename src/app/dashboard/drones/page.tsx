@@ -122,13 +122,18 @@ export default async function DronesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
-          <Plane className="mb-3 size-8 text-muted-foreground/40" />
-          <p className="font-medium text-muted-foreground">No drones yet</p>
-          <p className="mt-1 text-sm text-muted-foreground/60">
-            Add your first drone to get started.
-          </p>
-        </div>
+        <Card className="mx-auto max-w-md my-12">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Plane className="mb-4 size-12 text-slate-300" />
+            <p className="text-lg font-semibold">No drones in fleet</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Add a drone to start delivering.
+            </p>
+            <div className="mt-4">
+              <AddDroneDialog />
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

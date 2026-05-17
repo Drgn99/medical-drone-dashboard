@@ -1,6 +1,16 @@
 import { notFound, redirect } from "next/navigation";
-import { format } from "date-fns";
-import { MapPin, Package, User, Copy } from "lucide-react";
+import { formatTimestamp } from "@/lib/format";
+import {
+  MapPin,
+  Package,
+  User,
+  Copy,
+  Clock,
+  Send,
+  Plane,
+  PackageCheck,
+  Check,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getHospitalContext } from "@/lib/hospital";
 import { dispatchOrder, cancelOrder } from "@/lib/actions/orders";
@@ -17,14 +27,19 @@ import { getStatusLabel } from "@/lib/status";
 import type { Order, OrderStatus } from "@/types/database";
 import { headers } from "next/headers";
 
-const TIMELINE: { status: OrderStatus | OrderStatus[]; label: string }[] = [
-  { status: "pending", label: "Pending" },
-  { status: "dispatched", label: "Dispatched" },
-  { status: ["in_flight", "delivering"] as OrderStatus[], label: "En Route" },
-  { status: "arrived", label: "Arrived" },
-  { status: "delivered", label: "Delivered" },
-  { status: "returning", label: "Returning" },
-  { status: "returned", label: "Completed" },
+const TIMELINE: {
+  status: OrderStatus | OrderStatus[];
+  label: string;
+  icon: typeof Clock;
+  rotate?: boolean;
+}[] = [
+  { status: "pending", label: "Pending", icon: Clock },
+  { status: "dispatched", label: "Dispatched", icon: Send },
+  { status: ["in_flight", "delivering"] as OrderStatus[], label: "En Route", icon: Plane },
+  { status: "arrived", label: "Arrived", icon: MapPin },
+  { status: "delivered", label: "Delivered", icon: PackageCheck },
+  { status: "returning", label: "Returning", icon: Plane, rotate: true },
+  { status: "returned", label: "Completed", icon: Check },
 ];
 
 function statusMatchesStep(
@@ -59,12 +74,13 @@ function StatusTimeline({ status }: { status: OrderStatus }) {
         const isDone = isComplete || i < currentIndex;
         const isCurrent = !isComplete && i === currentIndex;
         const isLast = i === TIMELINE.length - 1;
+        const StepIcon = step.icon;
         return (
           <li key={step.label} className="flex items-center">
             <div className="flex flex-col items-center gap-1">
               <div
                 className={[
-                  "flex size-6 sm:size-7 items-center justify-center rounded-full text-xs font-bold",
+                  "flex size-6 sm:size-7 items-center justify-center rounded-full",
                   isCurrent
                     ? "bg-blue-600 text-white"
                     : isDone
@@ -72,7 +88,7 @@ function StatusTimeline({ status }: { status: OrderStatus }) {
                     : "bg-slate-100 text-slate-400",
                 ].join(" ")}
               >
-                {i + 1}
+                <StepIcon className={`size-3 sm:size-3.5 ${step.rotate ? "rotate-180" : ""}`} />
               </div>
               <span
                 className={[
@@ -276,27 +292,18 @@ export default async function OrderDetailPage({
             <CardContent className="space-y-2 pt-4 text-sm">
               <Row
                 label="Created"
-                value={format(
-                  new Date(typedOrder.created_at),
-                  "dd MMM yyyy HH:mm"
-                )}
+                value={formatTimestamp(typedOrder.created_at)}
               />
               {typedOrder.dispatched_at && (
                 <Row
                   label="Dispatched"
-                  value={format(
-                    new Date(typedOrder.dispatched_at),
-                    "dd MMM yyyy HH:mm"
-                  )}
+                  value={formatTimestamp(typedOrder.dispatched_at)}
                 />
               )}
               {typedOrder.delivered_at && (
                 <Row
                   label="Delivered"
-                  value={format(
-                    new Date(typedOrder.delivered_at),
-                    "dd MMM yyyy HH:mm"
-                  )}
+                  value={formatTimestamp(typedOrder.delivered_at)}
                 />
               )}
             </CardContent>

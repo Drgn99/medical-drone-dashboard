@@ -26,7 +26,7 @@ export default async function DashboardLayout({
         userEmail={ctx.user.email}
         signOutAction={signOut}
       />
-      <main className="flex-1 bg-slate-50">{children}</main>
+      <main className="flex-1 bg-slate-50 animate-in fade-in duration-200">{children}</main>
     </div>
   );
 }
