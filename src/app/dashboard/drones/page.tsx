@@ -7,6 +7,7 @@ import { AddDroneDialog } from "@/components/AddDroneDialog";
 import { EditDroneDialog } from "@/components/EditDroneDialog";
 import { RechargeDroneButton } from "@/components/RechargeDroneButton";
 import { ServoTestDialog } from "@/components/ServoTestDialog";
+import { DroneCameraDialog } from "@/components/DroneCameraDialog";
 import { DroneStatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -117,6 +118,10 @@ export default async function DronesPage() {
                         <ServoTestDialog
                           droneId={drone.id}
                           droneName={drone.name}
+                        />
+                        <DroneCameraDialog
+                          droneName={drone.name}
+                          cameraUrl={drone.camera_url ?? null}
                         />
                       </div>
                     </TableCell>

@@ -3,20 +3,33 @@
 import { useState, useEffect } from "react";
 import { Video } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DroneLiveVideo } from "@/components/DroneLiveVideo";
 
 const FLYING_STATUSES = ["in_flight", "delivering", "returning"];
 
 export function DroneCameraFeed({
   orderStatus,
   droneName,
+  cameraUrl,
 }: {
   orderStatus: string;
   droneName?: string;
+  cameraUrl?: string | null;
 }) {
   const isFlying = FLYING_STATUSES.includes(orderStatus);
   const isLanded = orderStatus === "arrived";
 
   if (!isFlying && !isLanded) return null;
+
+  // Overlay: drone name + clock
+  const overlay = (
+    <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-6">
+      <span className="text-xs font-medium text-white/90">
+        {droneName ?? "Drone"} — {isFlying ? "In Flight" : "Landed"}
+      </span>
+      <FeedClock />
+    </div>
+  );
 
   return (
     <Card>
@@ -28,34 +41,39 @@ export function DroneCameraFeed({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="relative overflow-hidden rounded-lg bg-black">
-          <video
-            src="/drone-feed.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full"
-            style={{ maxHeight: 320 }}
-          />
-          {/* Overlay: drone name + clock */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 pb-2 pt-6">
-            <span className="text-xs font-medium text-white/90">
-              {droneName ?? "Drone"} — {isFlying ? "In Flight" : "Landed"}
-            </span>
-            <FeedClock />
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Simulated camera feed for demonstration purposes. In production, this
-          streams from the Raspberry Pi companion computer via WebRTC.
-        </p>
+        {cameraUrl ? (
+          <>
+            <DroneLiveVideo src={cameraUrl}>{overlay}</DroneLiveVideo>
+            <p className="text-xs text-muted-foreground">
+              Live from the drone&apos;s Raspberry Pi camera. Expect a delay of a
+              few seconds.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="relative overflow-hidden rounded-lg bg-black">
+              <video
+                src="/drone-feed.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full"
+                style={{ maxHeight: 320 }}
+              />
+              {overlay}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Simulated camera feed: this drone has not reported a live camera.
+            </p>
+          </>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function LiveBadge() {
+export function LiveBadge() {
   return (
     <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
       <span className="size-1.5 animate-pulse rounded-full bg-white" />

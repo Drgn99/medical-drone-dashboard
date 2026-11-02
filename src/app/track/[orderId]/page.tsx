@@ -6,6 +6,7 @@ import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
 import { OrderStatusSubscriber } from "@/components/OrderStatusSubscriber";
 import { OtpVerifier } from "@/components/OtpVerifier";
 import { DroneCameraFeed } from "@/components/DroneCameraFeed";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { OrderStatus } from "@/types/database";
 
 interface PublicOrder {
@@ -104,6 +105,17 @@ export default async function TrackingPage({
   const order = (Array.isArray(data) ? data[0] : data) as PublicOrder | null;
   if (!order) notFound();
 
+  // Live camera URL for the assigned drone (only this one field is exposed).
+  let cameraUrl: string | null = null;
+  if (order.drone_id) {
+    const { data: drone } = await createServiceClient()
+      .from("drones")
+      .select("*")
+      .eq("id", order.drone_id)
+      .maybeSingle();
+    cameraUrl = (drone?.camera_url as string | null | undefined) ?? null;
+  }
+
   const meta = STATUS_META[order.status] ?? STATUS_META.pending;
   const hasHospitalCoords =
     order.hospital_latitude != null && order.hospital_longitude != null;
@@ -174,7 +186,7 @@ export default async function TrackingPage({
         </div>
 
         {/* Camera feed */}
-        <DroneCameraFeed orderStatus={order.status} />
+        <DroneCameraFeed orderStatus={order.status} cameraUrl={cameraUrl} />
 
         {/* OTP verifier — shown only when drone has arrived */}
         {order.status === "arrived" && (

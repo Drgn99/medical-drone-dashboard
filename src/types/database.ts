@@ -52,6 +52,7 @@ export interface Drone {
   current_lng: number | null;
   current_alt: number | null;
   last_seen: string | null;
+  camera_url: string | null;
   created_at: string;
 }
 

@@ -15,6 +15,9 @@ Config (env vars or a .env file next to this script):
   SERVO_PIN                  BCM pin number, default 18 (physical pin 12)
   SERVO_OPEN_ANGLE           default 90
   SERVO_CLOSED_ANGLE         default 0
+  CAMERA_URL                 optional public HLS URL of the camera stream,
+                             e.g. https://drone-pi.tailxxxx.ts.net/cam/index.m3u8
+                             (see README.md). Reported to the dashboard.
 """
 
 import os
@@ -118,6 +121,7 @@ def listen(servo):
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     drone_id = os.environ.get("DRONE_ID")
+    camera_url = os.environ.get("CAMERA_URL")
     missing = [n for n, v in [("SUPABASE_URL", url),
                               ("SUPABASE_SERVICE_ROLE_KEY", key),
                               ("DRONE_ID", drone_id)] if not v]
@@ -131,11 +135,16 @@ def listen(servo):
         sys.exit(f"No drone with id {drone_id} in Supabase. Copy the ID from the dashboard.")
     log(f"Listening for servo commands for '{drone.data[0]['name']}'. Ctrl+C to stop.")
 
+    heartbeat = {}
+    if camera_url:
+        heartbeat["camera_url"] = camera_url
+        log(f"Camera stream: {camera_url}")
+
     last_heartbeat = 0.0
     while True:
         try:
             if time.time() - last_heartbeat > HEARTBEAT_SECONDS:
-                db.table("drones").update({"last_seen": now_iso()}).eq("id", drone_id).execute()
+                db.table("drones").update({**heartbeat, "last_seen": now_iso()}).eq("id", drone_id).execute()
                 last_heartbeat = time.time()
 
             pending = (

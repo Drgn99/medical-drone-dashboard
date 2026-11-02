@@ -131,7 +131,7 @@ export default async function OrderDetailPage({
   const supabase = await createClient();
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("*, drones(name)")
+    .select("*, drones(*)")
     .eq("id", id)
     .eq("hospital_id", ctx.hospital.id)
     .single();
@@ -149,7 +149,9 @@ export default async function OrderDetailPage({
   const origin = `${proto}://${host}`;
   const trackingUrl = `${origin}/track/${order.id}`;
 
-  const typedOrder = order as Order & { drones: { name: string } | null };
+  const typedOrder = order as Order & {
+    drones: { name: string; camera_url: string | null } | null;
+  };
 
   // Bind server actions with the order ID
   const boundDispatch = dispatchOrder.bind(null, id);
@@ -216,6 +218,7 @@ export default async function OrderDetailPage({
       <DroneCameraFeed
         orderStatus={typedOrder.status}
         droneName={typedOrder.drones?.name ?? undefined}
+        cameraUrl={typedOrder.drones?.camera_url}
       />
 
       {/* Actions */}
