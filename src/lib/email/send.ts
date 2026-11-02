@@ -126,3 +126,76 @@ export async function sendDispatchEmail(
     };
   }
 }
+
+export interface InviteEmailPayload {
+  to: string;
+  fullName: string;
+  hospitalName: string;
+  invitedBy: string;
+  inviteUrl: string;
+}
+
+export async function sendInviteEmail(
+  payload: InviteEmailPayload
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { to, fullName, hospitalName, invitedBy, inviteUrl } = payload;
+
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      return { ok: false, error: "GMAIL_USER or GMAIL_APP_PASSWORD is not set" };
+    }
+
+    await transporter.sendMail({
+      from: `"${hospitalName}" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: `You've been invited to ${hospitalName}`,
+      text: [
+        `Hi ${fullName},`,
+        "",
+        `${invitedBy} has invited you to join ${hospitalName} on the medical drone dashboard.`,
+        "",
+        `Accept the invitation and sign in: ${inviteUrl}`,
+        "",
+        "This link can only be used once and expires in 24 hours.",
+        "After that, sign in from the login page with a one-time code sent to this address.",
+      ].join("\n"),
+      html: `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 16px;font-size:16px;color:#0f172a;">Hi ${fullName},</p>
+            <p style="margin:0 0 24px;font-size:14px;color:#334155;line-height:1.6;">
+              ${invitedBy} has invited you to join <strong>${hospitalName}</strong> on the medical drone dashboard.
+            </p>
+            <p style="margin:0 0 24px;text-align:center;">
+              <a href="${inviteUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;">Accept invitation</a>
+            </p>
+            <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
+              This link can only be used once and expires in 24 hours. After that, sign in from the login page with a one-time code sent to this address.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;text-align:center;">
+            <p style="margin:0;font-size:11px;color:#94a3b8;">${hospitalName} · Autonomous Medical Drone System</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+    });
+
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Unknown email error",
+    };
+  }
+}

@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getHospitalContext } from "@/lib/hospital";
+import { sendInviteEmail } from "@/lib/email/send";
+
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 /**
  * Self-registration: user requests access to the hospital.
@@ -171,15 +175,40 @@ export async function inviteStaffDirectly(input: {
     }
   }
 
-  // Invite the user (sends email via configured SMTP)
-  const { data: invited, error: inviteError } =
-    await service.auth.admin.inviteUserByEmail(input.email.trim());
+  // Generate the sign-in link ourselves and send it via Gmail, instead of
+  // inviteUserByEmail, which depends on Supabase's own SMTP settings.
+  // An existing auth user (e.g. from an earlier failed invite) gets a magic link.
+  const email = input.email.trim().toLowerCase();
+  const { data: link, error: linkError } =
+    await service.auth.admin.generateLink({
+      type: matchingUser ? "magiclink" : "invite",
+      email,
+    });
 
-  if (inviteError) return { success: false, error: inviteError.message };
+  if (linkError) return { success: false, error: linkError.message };
+
+  const inviteUrl =
+    `${APP_URL}/auth/confirm` +
+    `?token_hash=${encodeURIComponent(link.properties.hashed_token)}` +
+    `&type=${link.properties.verification_type === "invite" ? "invite" : "email"}`;
+
+  const sent = await sendInviteEmail({
+    to: email,
+    fullName: input.full_name.trim(),
+    hospitalName: ctx.hospital.name,
+    invitedBy: ctx.staff.full_name ?? "An administrator",
+    inviteUrl,
+  });
+
+  if (!sent.ok) {
+    // Don't leave a half-created user behind, so the invite can be retried.
+    if (!matchingUser) await service.auth.admin.deleteUser(link.user.id);
+    return { success: false, error: `Could not send invite email: ${sent.error}` };
+  }
 
   // Insert hospital_staff with status='active' (admin-initiated, skip approval)
   const { error: insertError } = await service.from("hospital_staff").insert({
-    user_id: invited.user.id,
+    user_id: link.user.id,
     hospital_id: ctx.hospital.id,
     full_name: input.full_name.trim(),
     role: input.role,
