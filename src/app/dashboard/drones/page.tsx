@@ -6,6 +6,7 @@ import { getHospitalContext } from "@/lib/hospital";
 import { AddDroneDialog } from "@/components/AddDroneDialog";
 import { EditDroneDialog } from "@/components/EditDroneDialog";
 import { RechargeDroneButton } from "@/components/RechargeDroneButton";
+import { ServoTestDialog } from "@/components/ServoTestDialog";
 import { DroneStatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -112,6 +113,10 @@ export default async function DronesPage() {
                           droneId={drone.id}
                           droneName={drone.name}
                           droneStatus={drone.status}
+                        />
+                        <ServoTestDialog
+                          droneId={drone.id}
+                          droneName={drone.name}
                         />
                       </div>
                     </TableCell>

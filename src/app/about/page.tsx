@@ -12,7 +12,7 @@ const TECH_STACK = [
   "Next.js 16, TypeScript, Tailwind CSS, shadcn/ui",
   "Supabase (PostgreSQL + Auth + Realtime + Storage)",
   "Leaflet + OpenStreetMap",
-  "Resend (transactional email)",
+  "Nodemailer + Gmail (transactional email)",
   "ArduPilot Copter on SpeedyBee F405 V5 flight controller",
   "Raspberry Pi 5 companion computer",
   "Python bridge with pymavlink",

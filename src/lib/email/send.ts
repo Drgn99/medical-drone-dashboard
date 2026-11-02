@@ -1,6 +1,14 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Gmail SMTP: sends to any address (Resend's test sender only reaches your own).
+// GMAIL_APP_PASSWORD is a 16-character Google App Password, not your normal password.
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
 export interface DispatchEmailPayload {
   to: string;
@@ -16,8 +24,12 @@ export async function sendDispatchEmail(
   try {
     const { to, patientName, hospitalName, otp, trackingUrl } = payload;
 
-    const { error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev",
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      return { ok: false, error: "GMAIL_USER or GMAIL_APP_PASSWORD is not set" };
+    }
+
+    await transporter.sendMail({
+      from: `"${hospitalName}" <${process.env.GMAIL_USER}>`,
       to,
       subject: `Your medical delivery is on the way — ${hospitalName}`,
       text: [
@@ -106,7 +118,6 @@ export async function sendDispatchEmail(
 </html>`,
     });
 
-    if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (err) {
     return {

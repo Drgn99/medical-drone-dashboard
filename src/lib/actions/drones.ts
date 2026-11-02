@@ -118,3 +118,76 @@ export async function rechargeDrone(
 
   return { success: true };
 }
+
+// ── Servo test commands (picked up by the Raspberry Pi listener) ────────────
+
+export type ServoCommandType = "servo_open" | "servo_close" | "servo_test";
+
+export async function sendServoCommand(
+  droneId: string,
+  commandType: ServoCommandType
+): Promise<{ success: boolean; commandId?: string; error?: string }> {
+  const ctx = await getHospitalContext();
+  if (!ctx) return { success: false, error: "Not authenticated" };
+
+  const supabase = await createClient();
+
+  const { data: drone, error: fetchError } = await supabase
+    .from("drones")
+    .select("id")
+    .eq("id", droneId)
+    .eq("hospital_id", ctx.hospital.id)
+    .single();
+
+  if (fetchError || !drone) return { success: false, error: "Drone not found" };
+
+  const { data: command, error } = await supabase
+    .from("drone_commands")
+    .insert({
+      drone_id: droneId,
+      order_id: null,
+      command_type: commandType,
+      payload: {},
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (error || !command) {
+    return { success: false, error: error?.message ?? "Failed to send command" };
+  }
+
+  return { success: true, commandId: command.id };
+}
+
+export async function getDroneCommandStatus(
+  commandId: string
+): Promise<{ status: string | null; result: string | null }> {
+  const ctx = await getHospitalContext();
+  if (!ctx) return { status: null, result: null };
+
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("drone_commands")
+    .select("status, payload, drone_id")
+    .eq("id", commandId)
+    .single();
+
+  if (!data) return { status: null, result: null };
+
+  // Only report on commands for this hospital's drones.
+  const { data: drone } = await supabase
+    .from("drones")
+    .select("id")
+    .eq("id", data.drone_id)
+    .eq("hospital_id", ctx.hospital.id)
+    .single();
+
+  if (!drone) return { status: null, result: null };
+
+  const payload = (data.payload ?? {}) as Record<string, unknown>;
+  const result = typeof payload.result === "string" ? payload.result : null;
+
+  return { status: data.status, result };
+}
