@@ -1,0 +1,29 @@
+# Obstacle avoidance for the medical drone: Benewake TF-Luna LiDAR facing forward.
+# Load in Mission Planner: CONFIG > Full Parameter List > Load from file > Write Params, then reboot the FC.
+# BEFORE loading: replace every SERIAL6 below with the FC UART the LiDAR is wired to
+# (the one not used by GPS, ELRS receiver or the Pi). Check the SpeedyBee F405 V5 manual for which is free.
+
+# --- LiDAR on a spare UART ---
+SERIAL6_PROTOCOL,9
+SERIAL6_BAUD,115
+RNGFND1_TYPE,20
+RNGFND1_ORIENT,0
+RNGFND1_MIN_CM,20
+RNGFND1_MAX_CM,800
+RNGFND1_POS_X,0.08
+
+# --- Turn the rangefinder into a proximity sensor ---
+PRX1_TYPE,4
+
+# --- Avoidance ---
+# Simple avoidance: stop before hitting something (all sources)
+AVOID_ENABLE,7
+AVOID_MARGIN,3
+AVOID_BEHAVE,1
+# Path planning in Guided / Auto / RTL (the Pi flies in Guided): BendyRuler steers around
+OA_TYPE,1
+OA_BR_LOOKAHEAD,10
+OA_MARGIN_MAX,4
+
+# --- Keep the nose (and the LiDAR) pointing where the drone flies ---
+WP_YAW_BEHAVIOR,1

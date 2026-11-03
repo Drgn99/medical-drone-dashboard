@@ -1,0 +1,21 @@
+# Starts the bridge on boot. Install on the Pi:
+#   sudo cp drone-bridge.service /etc/systemd/system/
+#   sudo systemctl enable --now drone-bridge
+#   journalctl -u drone-bridge -f        # live logs over SSH
+[Unit]
+Description=Medical drone MAVLink <-> Supabase bridge
+After=network-online.target
+# serial console must be OFF and dtparam=uart0=on set, or /dev/ttyAMA0 is busy
+Wants=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi
+# drone.env holds: SUPABASE_URL=...  SUPABASE_SERVICE_ROLE_KEY=...  DRONE_ID=...   (chmod 600 it)
+EnvironmentFile=/home/pi/drone.env
+ExecStart=/home/pi/drone/bin/python -u /home/pi/bridge.py --watch
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

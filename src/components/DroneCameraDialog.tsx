@@ -37,8 +37,8 @@ export function DroneCameraDialog({
               {cameraUrl && <LiveBadge />}
             </DialogTitle>
             <DialogDescription>
-              Live video from the Raspberry Pi camera. Expect a delay of a few
-              seconds.
+              Live video from the Raspberry Pi door camera. During a mission
+              it also shows the obstacle-detection boxes.
             </DialogDescription>
           </DialogHeader>
 
@@ -46,10 +46,10 @@ export function DroneCameraDialog({
             <DroneLiveVideo src={cameraUrl} maxHeight={480} />
           ) : (
             <p className="text-sm text-muted-foreground">
-              This drone hasn&apos;t reported a camera yet. On the Pi, set{" "}
-              <code className="font-mono text-xs">CAMERA_URL</code> in{" "}
-              <code className="font-mono text-xs">pi/.env</code> and restart{" "}
-              <code className="font-mono text-xs">servo_listener.py</code> (see{" "}
+              This drone hasn&apos;t reported a camera yet. On the Pi, add{" "}
+              <code className="font-mono text-xs">CAMERA_URL</code> to{" "}
+              <code className="font-mono text-xs">~/drone.env</code> and restart{" "}
+              <code className="font-mono text-xs">drone-bridge</code> (see{" "}
               <code className="font-mono text-xs">pi/README.md</code>).
             </p>
           )}

@@ -1,0 +1,24 @@
+# Obstacle avoidance from the door camera (prototype). The Pi runs a depth model and sends the
+# forward distance over MAVLink 10x per second, like a rangefinder. No extra wiring needed.
+# Load in Mission Planner: CONFIG > Full Parameter List > Load from file > Write Params, reboot the FC.
+# Use this file OR ardupilot-avoidance.param (TF-Luna LiDAR), not both.
+
+# --- Rangefinder fed by the Pi over MAVLink ---
+RNGFND1_TYPE,10
+RNGFND1_ORIENT,0
+RNGFND1_MIN_CM,20
+RNGFND1_MAX_CM,800
+
+# --- Turn the rangefinder into a proximity sensor ---
+PRX1_TYPE,4
+
+# --- Avoidance (same as the LiDAR file) ---
+AVOID_ENABLE,7
+AVOID_MARGIN,3
+AVOID_BEHAVE,1
+OA_TYPE,1
+OA_BR_LOOKAHEAD,10
+OA_MARGIN_MAX,4
+
+# --- Keep the nose (and the camera) pointing where the drone flies ---
+WP_YAW_BEHAVIOR,1

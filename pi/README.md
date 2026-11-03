@@ -1,96 +1,146 @@
-# Raspberry Pi 5 setup
+# Raspberry Pi 5 companion computer
 
-Two things run on the Pi:
+The Pi rides in the payload box. `bridge.py` is the whole drone program:
+Supabase <-> MAVLink missions, the door servo (GPIO 17, locked 90° /
+unlocked 180°), the door camera (MJPEG on port 8000) and AI obstacle
+detection. Full background, wiring and test results are in the team's
+"Medical Drone Pi Code and Setup" document.
 
-- `servo_listener.py`: moves the payload servo when the dashboard asks, and
-  reports the drone's heartbeat (and camera URL) to Supabase.
-- MediaMTX: streams the Pi Camera Module as low-latency HLS. Tailscale Funnel
-  gives it a public HTTPS address so the dashboard can play it from anywhere.
+| File | Goes to | What it is |
+|---|---|---|
+| `bridge.py` | Pi: `/home/pi/bridge.py` | The drone program |
+| `drone-bridge.service` | Pi: `/etc/systemd/system/` | Starts `bridge.py --watch` on boot |
+| `ardupilot-avoidance-camera.param` | Mission Planner -> FC | Avoidance fed by the Pi camera AI (current choice) |
+| `ardupilot-avoidance.param` | Mission Planner -> FC | Alternative: TF-Luna LiDAR |
+| `set-env.ps1` | Windows PC | Writes `~/drone.env` on the Pi (key hidden while typing) |
+| `copy-key.ps1` | Windows PC | Copies the PC's SSH key to the Pi |
 
-Use 64-bit Raspberry Pi OS (Bookworm).
+`~/drone.env` on the Pi holds `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+`DRONE_ID` and optionally `CAMERA_URL`. Never commit it.
 
-## 1. Settings
+## What `bridge.py --watch` does
 
-```bash
-cp .env.example .env
-nano .env
-```
+- Flies orders the dashboard dispatches to this drone (one process per mission).
+- Between missions:
+  - keeps the camera stream running on port 8000, so the dashboard can show it;
+  - runs the dashboard's **Test servo** button (Open = unlock 180°,
+    Close = lock 90°, Open then close);
+  - updates the drone's `last_seen` (and `camera_url`) every 3 s.
+- When a mission starts, the watcher hands the camera to the mission (which
+  also needs it for obstacle detection). The dashboard reconnects by itself
+  after a few seconds and then shows the AI boxes too.
 
-Fill in `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `DRONE_ID` (copy the
-ID from the dashboard). `CAMERA_URL` comes in step 4.
+## Updating a Pi that is already set up
 
-## 2. Servo listener
+Run these from the project folder on the Windows PC unless it says "on the Pi".
 
-```bash
-sudo apt install -y python3-gpiozero python3-lgpio
-pip install --break-system-packages supabase
-python3 servo_listener.py --local   # wiring test
-python3 servo_listener.py           # listen for dashboard commands
-```
+1. **Database (once):** in the Supabase SQL Editor run
+   `supabase/add_drone_camera_url.sql`.
 
-## 3. Camera stream (MediaMTX)
+2. **Stop anything from the old approach (on the Pi),** if you installed it:
 
-Check the camera works first:
+   ```bash
+   sudo systemctl disable --now mediamtx 2>/dev/null
+   pkill -f servo_listener.py
+   ```
 
-```bash
-rpicam-hello -t 5000
-```
+3. **Copy the new files:**
 
-Download the `linux_arm64` build of MediaMTX from
-https://github.com/bluenviron/mediamtx/releases and unpack it next to this
-README, then start it with the config in this folder:
+   ```powershell
+   scp pi/bridge.py pi/drone-bridge.service pi@drone.local:~/
+   ```
 
-```bash
-tar xzf mediamtx_*_linux_arm64.tar.gz mediamtx
-./mediamtx mediamtx.yml
-```
+4. **Self-check (on the Pi):**
 
-On the Pi itself, http://localhost:8888/cam/ now shows the video.
+   ```bash
+   ~/drone/bin/python ~/bridge.py --selftest    # -> selftest ok
+   ```
 
-To start it on boot, create `/etc/systemd/system/mediamtx.service`
-(change `/home/pi/pi` to wherever this folder is):
+5. **Public camera address with Tailscale Funnel (on the Pi):**
 
-```ini
-[Unit]
-Description=MediaMTX camera stream
-After=network-online.target
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscale up            # open the printed link, sign in
+   sudo tailscale funnel --bg 8000
+   tailscale funnel status
+   ```
 
-[Service]
-WorkingDirectory=/home/pi/pi
-ExecStart=/home/pi/pi/mediamtx /home/pi/pi/mediamtx.yml
-Restart=always
+   The first `funnel` command may print a link to turn Funnel on for your
+   tailnet: open it, approve, run the command again. `funnel status` shows an
+   address like `https://drone.tailxxxx.ts.net`.
 
-[Install]
-WantedBy=multi-user.target
-```
+6. **Add the camera address to `~/drone.env` (on the Pi)** (use your address,
+   keep the `/` at the end):
 
-```bash
-sudo systemctl enable --now mediamtx
-```
+   ```bash
+   echo "CAMERA_URL=https://drone.tailxxxx.ts.net/" >> ~/drone.env
+   ```
 
-## 4. Public address (Tailscale Funnel)
+   Or run `set-env.ps1` again on the PC; it now asks for the camera URL as
+   step 4/4.
 
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-sudo tailscale funnel --bg 8888
-```
+7. **Start or restart the service (on the Pi):**
 
-The first `funnel` command prints a link to turn Funnel on for your tailnet;
-open it, approve, and run the command again. Then:
+   ```bash
+   sudo cp ~/drone-bridge.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable drone-bridge
+   sudo systemctl restart drone-bridge
+   journalctl -u drone-bridge -f
+   ```
 
-```bash
-tailscale funnel status
-```
+   The log should show `watching Supabase for dispatched orders (drone ...)`
+   and `camera live at http://<pi-ip>:8000/`.
 
-shows an address like `https://drone-pi.tailxxxx.ts.net`. Put the stream URL
-in `.env`:
+8. **Test from the dashboard,** propellers off:
+   - Drones page -> **Camera**: live video within a few seconds.
+   - Drones page -> **Test servo** -> Open / Close / Open, then close. The
+     latch should move and the dialog should report the result. The log shows
+     `dashboard servo command: ...`.
+   - "Last seen" for the drone should say "less than a minute ago".
 
-```
-CAMERA_URL=https://drone-pi.tailxxxx.ts.net/cam/index.m3u8
-```
+## Setting up a Pi from scratch
 
-Restart `servo_listener.py`. It reports the URL to Supabase, and the dashboard
-plays it on the Drones page ("Camera") and on the order and tracking pages.
+1. Raspberry Pi Imager -> Raspberry Pi 5 -> Raspberry Pi OS (64-bit).
+   Customisation: hostname `drone`, user `pi`, Wi-Fi (country OM), SSH on.
+2. Fit the Active Cooler, RTC battery on BAT, camera on CAM/DISP 0 (Pi off).
+3. On the PC: create an SSH key, run `copy-key.ps1`.
+4. On the Pi:
 
-Anyone who has this URL can watch the stream.
+   ```bash
+   sudo apt update
+   sudo apt install -y python3-picamera2 python3-gpiozero python3-lgpio python3-venv
+   python3 -m venv --system-site-packages ~/drone
+   ~/drone/bin/pip install pymavlink onnxruntime
+   mkdir -p ~/models && cd ~/models
+   curl -L -o model-small.onnx https://github.com/isl-org/MiDaS/releases/download/v2_1/model-small.onnx
+   curl -L -o yolo11n.onnx https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.onnx
+   sudo raspi-config nonint do_serial_cons 1
+   sudo raspi-config nonint do_serial_hw 0
+   echo "dtparam=uart0=on" | sudo tee -a /boot/firmware/config.txt
+   sudo reboot
+   ```
+
+5. Run `set-env.ps1` on the PC, then steps 3-8 above.
+
+## Other commands (on the Pi)
+
+| Command | What it does |
+|---|---|
+| `~/drone/bin/python bridge.py --door-test` | Latch locked -> unlocked -> locked, then one photo (`test.jpg`). Props off. |
+| `~/drone/bin/python bridge.py --vision-test` | 10 minutes of live AI; watch `http://drone.local:8000/` |
+| `~/drone/bin/python bridge.py <orderId>` | Fly one order by hand |
+| `... <orderId> --connect udpin:0.0.0.0:14550 --no-box` | Against ArduPilot SITL on a laptop |
+
+Stop the service first (`sudo systemctl stop drone-bridge`) before running
+these: only one program can use the camera and the servo at a time.
+
+## Safety and privacy
+
+- Once the service runs, a **Dispatch** click can make the drone take off.
+  Keep the ELRS transmitter on with a LOITER/LAND switch, test in SITL first,
+  then on the bench with propellers off.
+- Anyone who has the Funnel address can watch the camera. Turn it off with
+  `sudo tailscale funnel reset`.
+- The stream is 640x480 JPEG at 15 fps, roughly 3-5 Mbit/s per viewer over
+  the hotspot. Close the camera window when you don't need it.

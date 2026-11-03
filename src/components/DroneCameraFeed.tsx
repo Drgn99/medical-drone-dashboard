@@ -45,8 +45,7 @@ export function DroneCameraFeed({
           <>
             <DroneLiveVideo src={cameraUrl}>{overlay}</DroneLiveVideo>
             <p className="text-xs text-muted-foreground">
-              Live from the drone&apos;s Raspberry Pi camera. Expect a delay of a
-              few seconds.
+              Live from the drone&apos;s Raspberry Pi door camera.
             </p>
           </>
         ) : (
