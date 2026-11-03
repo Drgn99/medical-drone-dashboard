@@ -8,6 +8,7 @@ import { EditDroneDialog } from "@/components/EditDroneDialog";
 import { RechargeDroneButton } from "@/components/RechargeDroneButton";
 import { ServoTestDialog } from "@/components/ServoTestDialog";
 import { DroneCameraDialog } from "@/components/DroneCameraDialog";
+import { isLiveKitConfigured } from "@/lib/livekit";
 import { DroneStatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -36,6 +37,7 @@ function BatteryBar({ value }: { value: number | null }) {
 }
 
 export default async function DronesPage() {
+  const liveKit = isLiveKitConfigured();
   const ctx = await getHospitalContext();
   if (!ctx) redirect("/login");
 
@@ -120,8 +122,9 @@ export default async function DronesPage() {
                           droneName={drone.name}
                         />
                         <DroneCameraDialog
+                          droneId={drone.id}
                           droneName={drone.name}
-                          cameraUrl={drone.camera_url ?? null}
+                          liveKit={liveKit}
                         />
                       </div>
                     </TableCell>

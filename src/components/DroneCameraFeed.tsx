@@ -4,20 +4,23 @@ import { useState, useEffect } from "react";
 import { Video } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DroneLiveVideo } from "@/components/DroneLiveVideo";
+import type { CameraToken } from "@/lib/livekit";
 
-const FLYING_STATUSES = ["in_flight", "delivering", "returning"];
+const FLYING_STATUSES = ["in_flight", "returning"];
+const LANDED_STATUSES = ["arrived", "delivered"];
 
 export function DroneCameraFeed({
   orderStatus,
   droneName,
-  cameraUrl,
+  liveCamera,
 }: {
   orderStatus: string;
   droneName?: string;
-  cameraUrl?: string | null;
+  /** Set when the drone streams its camera to LiveKit; getToken is a bound server action. */
+  liveCamera?: { droneId: string; getToken: () => Promise<CameraToken> } | null;
 }) {
   const isFlying = FLYING_STATUSES.includes(orderStatus);
-  const isLanded = orderStatus === "arrived";
+  const isLanded = LANDED_STATUSES.includes(orderStatus);
 
   if (!isFlying && !isLanded) return null;
 
@@ -41,9 +44,11 @@ export function DroneCameraFeed({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {cameraUrl ? (
+        {liveCamera ? (
           <>
-            <DroneLiveVideo src={cameraUrl}>{overlay}</DroneLiveVideo>
+            <DroneLiveVideo droneId={liveCamera.droneId} getToken={liveCamera.getToken}>
+              {overlay}
+            </DroneLiveVideo>
             <p className="text-xs text-muted-foreground">
               Live from the drone&apos;s Raspberry Pi door camera.
             </p>

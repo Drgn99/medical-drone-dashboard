@@ -12,13 +12,17 @@ import {
 } from "@/components/ui/dialog";
 import { DroneLiveVideo } from "@/components/DroneLiveVideo";
 import { LiveBadge } from "@/components/DroneCameraFeed";
+import { getDroneCameraToken } from "@/lib/actions/drones";
 
 export function DroneCameraDialog({
+  droneId,
   droneName,
-  cameraUrl,
+  liveKit,
 }: {
+  droneId: string;
   droneName: string;
-  cameraUrl: string | null;
+  /** Whether the website has LiveKit settings (the Pi publishes to room drone-<id>). */
+  liveKit: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -34,7 +38,7 @@ export function DroneCameraDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {droneName} camera
-              {cameraUrl && <LiveBadge />}
+              {liveKit && <LiveBadge />}
             </DialogTitle>
             <DialogDescription>
               Live video from the Raspberry Pi door camera. During a mission
@@ -42,14 +46,19 @@ export function DroneCameraDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {cameraUrl ? (
-            <DroneLiveVideo src={cameraUrl} maxHeight={480} />
+          {liveKit ? (
+            <DroneLiveVideo
+              droneId={droneId}
+              getToken={() => getDroneCameraToken(droneId)}
+              maxHeight={480}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">
-              This drone hasn&apos;t reported a camera yet. On the Pi, add{" "}
-              <code className="font-mono text-xs">CAMERA_URL</code> to{" "}
-              <code className="font-mono text-xs">~/drone.env</code> and restart{" "}
-              <code className="font-mono text-xs">drone-bridge</code> (see{" "}
+              The live camera isn&apos;t set up on the website yet. Add{" "}
+              <code className="font-mono text-xs">NEXT_PUBLIC_LIVEKIT_URL</code>,{" "}
+              <code className="font-mono text-xs">LIVEKIT_API_KEY</code> and{" "}
+              <code className="font-mono text-xs">LIVEKIT_API_SECRET</code> to the
+              website&apos;s environment and restart it (see{" "}
               <code className="font-mono text-xs">pi/README.md</code>).
             </p>
           )}

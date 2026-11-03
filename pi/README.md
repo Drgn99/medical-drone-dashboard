@@ -2,102 +2,86 @@
 
 The Pi rides in the payload box. `bridge.py` is the whole drone program:
 Supabase <-> MAVLink missions, the door servo (GPIO 17, locked 90° /
-unlocked 180°), the door camera (MJPEG on port 8000) and AI obstacle
+unlocked 180°), the door camera (live through LiveKit) and AI obstacle
 detection. Full background, wiring and test results are in the team's
-"Medical Drone Pi Code and Setup" document.
+"Medical Drone Pi Code and Setup" and "LiveKit Handover" documents.
 
 | File | Goes to | What it is |
 |---|---|---|
 | `bridge.py` | Pi: `/home/pi/bridge.py` | The drone program |
 | `drone-bridge.service` | Pi: `/etc/systemd/system/` | Starts `bridge.py --watch` on boot |
+| `setup-service.sh` | Pi: `~/` | One-time: installs and starts the service |
+| `set-env.ps1` | Windows PC | Writes the Supabase settings into `~/drone.env` (keeps the LiveKit lines) |
+| `set-livekit.ps1` | Windows PC | Writes the LiveKit settings into `~/drone.env` (keeps the rest; checks the values first) |
+| `copy-key.ps1` | Windows PC | Copies the PC's SSH key to the Pi |
 | `ardupilot-avoidance-camera.param` | Mission Planner -> FC | Avoidance fed by the Pi camera AI (current choice) |
 | `ardupilot-avoidance.param` | Mission Planner -> FC | Alternative: TF-Luna LiDAR |
-| `set-env.ps1` | Windows PC | Writes `~/drone.env` on the Pi (key hidden while typing) |
-| `copy-key.ps1` | Windows PC | Copies the PC's SSH key to the Pi |
 
 `~/drone.env` on the Pi holds `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-`DRONE_ID` and optionally `CAMERA_URL`. Never commit it.
+`DRONE_ID`, `LIVEKIT_URL`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`.
+Never commit it.
+
+## Live camera (LiveKit)
+
+```
+Pi camera --(outgoing WebRTC)--> LiveKit Cloud --> dashboard (staff)
+  room "drone-<drones.id>"         (wss://)    --> patient tracking page
+```
+
+- The Pi only connects out: no tunnel, no VPN, nothing opened on the Pi.
+  LiveKit project `drone-cam` (EU Frankfurt).
+- Whoever owns the camera (the watcher between missions, the mission process
+  during a flight) publishes it as track `door-camera`, 640×480 at 15 fps,
+  identity `drone-<drones.id>`. During a mission the AI boxes are drawn in.
+  A new publisher with the same identity replaces the old one.
+- The website joins the same room watch-only with a 1-hour token made on its
+  server (`src/lib/livekit.ts`). Staff: drones of their hospital. Patient
+  tracking page: that order's drone while it is `in_flight`, `arrived` or
+  `delivered`. No recording.
+- On the same Wi-Fi the camera is also at `http://drone.local:8000/` (MJPEG,
+  10 fps per viewer): a backup for testing, not used by the website.
 
 ## What `bridge.py --watch` does
 
 - Flies orders the dashboard dispatches to this drone (one process per mission).
 - Between missions:
-  - keeps the camera stream running on port 8000, so the dashboard can show it;
+  - keeps the camera on and published to LiveKit;
   - runs the dashboard's **Test servo** button (Open = unlock 180°,
-    Close = lock 90°, Open then close);
-  - updates the drone's `last_seen` (and `camera_url`) every 3 s.
-- When a mission starts, the watcher hands the camera to the mission (which
-  also needs it for obstacle detection). The dashboard reconnects by itself
-  after a few seconds and then shows the AI boxes too.
+    Close = lock 90°, Open then close), checked every 0.5 s;
+  - updates the drone's `last_seen` every 3 s.
 
-## Updating a Pi that is already set up
+## Website settings (once)
 
-Run these from the project folder on the Windows PC unless it says "on the Pi".
+In cloud.livekit.io -> project `drone-cam` -> Settings -> API keys, create a
+separate key for the website (do not reuse the Pi's key). Then set, in
+`.env.local` and the hosting provider (Production + Preview):
 
-1. **Database (once):** in the Supabase SQL Editor run
-   `supabase/add_drone_camera_url.sql`.
+```
+NEXT_PUBLIC_LIVEKIT_URL=wss://....livekit.cloud
+LIVEKIT_API_KEY=API...
+LIVEKIT_API_SECRET=...
+```
 
-2. **Stop anything from the old approach (on the Pi),** if you installed it:
+and restart the website. `supabase/add_servo_commands.sql` (already run on the
+live project) lets the Test servo commands and the Pi's replies through the
+`drone_commands` check constraints.
 
-   ```bash
-   sudo systemctl disable --now mediamtx 2>/dev/null
-   pkill -f servo_listener.py
-   ```
+## Updating the Pi to a new bridge.py
 
-3. **Copy the new files:**
+From the folder with the new file on the PC, then on the Pi. Propellers off.
 
-   ```powershell
-   scp pi/bridge.py pi/drone-bridge.service pi@drone.local:~/
-   ```
+```powershell
+scp bridge.py pi@drone.local:~/
+```
 
-4. **Self-check (on the Pi):**
+```bash
+~/drone/bin/python ~/bridge.py --selftest      # -> selftest ok
+sudo systemctl restart drone-bridge
+journalctl -u drone-bridge -f
+```
 
-   ```bash
-   ~/drone/bin/python ~/bridge.py --selftest    # -> selftest ok
-   ```
-
-5. **Public camera address with Tailscale Funnel (on the Pi):**
-
-   ```bash
-   curl -fsSL https://tailscale.com/install.sh | sh
-   sudo tailscale up            # open the printed link, sign in
-   sudo tailscale funnel --bg 8000
-   tailscale funnel status
-   ```
-
-   The first `funnel` command may print a link to turn Funnel on for your
-   tailnet: open it, approve, run the command again. `funnel status` shows an
-   address like `https://drone.tailxxxx.ts.net`.
-
-6. **Add the camera address to `~/drone.env` (on the Pi)** (use your address,
-   keep the `/` at the end):
-
-   ```bash
-   echo "CAMERA_URL=https://drone.tailxxxx.ts.net/" >> ~/drone.env
-   ```
-
-   Or run `set-env.ps1` again on the PC; it now asks for the camera URL as
-   step 4/4.
-
-7. **Start or restart the service (on the Pi):**
-
-   ```bash
-   sudo cp ~/drone-bridge.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable drone-bridge
-   sudo systemctl restart drone-bridge
-   journalctl -u drone-bridge -f
-   ```
-
-   The log should show `watching Supabase for dispatched orders (drone ...)`
-   and `camera live at http://<pi-ip>:8000/`.
-
-8. **Test from the dashboard,** propellers off:
-   - Drones page -> **Camera**: live video within a few seconds.
-   - Drones page -> **Test servo** -> Open / Close / Open, then close. The
-     latch should move and the dialog should report the result. The log shows
-     `dashboard servo command: ...`.
-   - "Last seen" for the drone should say "less than a minute ago".
+The log should show `watching Supabase for dispatched orders (drone ...)`,
+`camera live at http://<pi-ip>:8000/` and `livekit: camera live in room drone-...`.
 
 ## Setting up a Pi from scratch
 
@@ -111,7 +95,7 @@ Run these from the project folder on the Windows PC unless it says "on the Pi".
    sudo apt update
    sudo apt install -y python3-picamera2 python3-gpiozero python3-lgpio python3-venv
    python3 -m venv --system-site-packages ~/drone
-   ~/drone/bin/pip install pymavlink onnxruntime
+   ~/drone/bin/pip install pymavlink onnxruntime livekit livekit-api
    mkdir -p ~/models && cd ~/models
    curl -L -o model-small.onnx https://github.com/isl-org/MiDaS/releases/download/v2_1/model-small.onnx
    curl -L -o yolo11n.onnx https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.onnx
@@ -121,14 +105,17 @@ Run these from the project folder on the Windows PC unless it says "on the Pi".
    sudo reboot
    ```
 
-5. Run `set-env.ps1` on the PC, then steps 3-8 above.
+5. Copy `bridge.py`, `drone-bridge.service` and `setup-service.sh` to
+   `/home/pi/`. On the PC run `set-env.ps1`, then `set-livekit.ps1`.
+6. On the Pi: `~/drone/bin/python ~/bridge.py --selftest`, then
+   `bash ~/setup-service.sh`.
 
 ## Other commands (on the Pi)
 
 | Command | What it does |
 |---|---|
 | `~/drone/bin/python bridge.py --door-test` | Latch locked -> unlocked -> locked, then one photo (`test.jpg`). Props off. |
-| `~/drone/bin/python bridge.py --vision-test` | 10 minutes of live AI; watch `http://drone.local:8000/` |
+| `~/drone/bin/python bridge.py --vision-test` | 10 minutes of live AI; watch `http://drone.local:8000/` or the dashboard |
 | `~/drone/bin/python bridge.py <orderId>` | Fly one order by hand |
 | `... <orderId> --connect udpin:0.0.0.0:14550 --no-box` | Against ArduPilot SITL on a laptop |
 
@@ -137,10 +124,9 @@ these: only one program can use the camera and the servo at a time.
 
 ## Safety and privacy
 
-- Once the service runs, a **Dispatch** click can make the drone take off.
-  Keep the ELRS transmitter on with a LOITER/LAND switch, test in SITL first,
-  then on the bench with propellers off.
-- Anyone who has the Funnel address can watch the camera. Turn it off with
-  `sudo tailscale funnel reset`.
-- The stream is 640x480 JPEG at 15 fps, roughly 3-5 Mbit/s per viewer over
-  the hotspot. Close the camera window when you don't need it.
+- The service is always on, so **Dispatch** on an order for this drone starts
+  a mission. Keep the ELRS transmitter on with a LOITER/LAND switch, test in
+  SITL first, then on the bench with propellers off.
+- The camera sees patients at their door: no recording, no public links.
+- The Pi holds the Supabase service_role key and its own LiveKit API secret in
+  `~/drone.env` (chmod 600). Fine for the prototype; never commit or share it.

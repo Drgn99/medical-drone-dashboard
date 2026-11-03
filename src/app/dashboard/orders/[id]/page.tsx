@@ -22,6 +22,8 @@ import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
 import { OrderStatusSubscriber } from "@/components/OrderStatusSubscriber";
 import { SimulatorCommandCard } from "@/components/SimulatorCommandCard";
 import { DroneCameraFeed } from "@/components/DroneCameraFeed";
+import { getDroneCameraToken } from "@/lib/actions/drones";
+import { isLiveKitConfigured } from "@/lib/livekit";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getStatusLabel } from "@/lib/status";
 import type { Order, OrderStatus } from "@/types/database";
@@ -131,7 +133,7 @@ export default async function OrderDetailPage({
   const supabase = await createClient();
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("*, drones(*)")
+    .select("*, drones(name)")
     .eq("id", id)
     .eq("hospital_id", ctx.hospital.id)
     .single();
@@ -149,9 +151,7 @@ export default async function OrderDetailPage({
   const origin = `${proto}://${host}`;
   const trackingUrl = `${origin}/track/${order.id}`;
 
-  const typedOrder = order as Order & {
-    drones: { name: string; camera_url: string | null } | null;
-  };
+  const typedOrder = order as Order & { drones: { name: string } | null };
 
   // Bind server actions with the order ID
   const boundDispatch = dispatchOrder.bind(null, id);
@@ -218,7 +218,14 @@ export default async function OrderDetailPage({
       <DroneCameraFeed
         orderStatus={typedOrder.status}
         droneName={typedOrder.drones?.name ?? undefined}
-        cameraUrl={typedOrder.drones?.camera_url}
+        liveCamera={
+          typedOrder.drone_id && isLiveKitConfigured()
+            ? {
+                droneId: typedOrder.drone_id,
+                getToken: getDroneCameraToken.bind(null, typedOrder.drone_id),
+              }
+            : null
+        }
       />
 
       {/* Actions */}

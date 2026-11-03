@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getHospitalContext } from "@/lib/hospital";
+import { createViewerToken, type CameraToken } from "@/lib/livekit";
 
 export async function addDrone(data: {
   name: string;
@@ -117,6 +118,24 @@ export async function rechargeDrone(
   revalidatePath("/dashboard/drones");
 
   return { success: true };
+}
+
+// ── Live camera (LiveKit) ────────────────────────────────────────────────────
+
+export async function getDroneCameraToken(droneId: string): Promise<CameraToken> {
+  const ctx = await getHospitalContext();
+  if (!ctx) return { ok: false, error: "Not authenticated" };
+
+  const supabase = await createClient();
+  const { data: drone } = await supabase
+    .from("drones")
+    .select("id")
+    .eq("id", droneId)
+    .eq("hospital_id", ctx.hospital.id)
+    .maybeSingle();
+
+  if (!drone) return { ok: false, error: "Drone not found" };
+  return createViewerToken(droneId);
 }
 
 // ── Servo test commands (picked up by the Raspberry Pi listener) ────────────

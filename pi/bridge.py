@@ -9,12 +9,12 @@ No reed switch: the Pi cannot see the door, it trusts gravity + the timer.
 
 Usage:
   python3 bridge.py --watch                  # on the drone: fly whatever the website dispatches;
-                                             # between missions: camera stream + dashboard "Test servo"
+                                             # between missions: LiveKit camera + dashboard "Test servo"
   python3 bridge.py <orderId>                # fly one order by hand
   python3 bridge.py <orderId> --connect udpin:0.0.0.0:14550 --no-box  # ArduPilot SITL on a laptop
   python3 bridge.py --door-test              # bench: latch cycle + camera frame (props OFF)
   python3 bridge.py --selftest
-Live door camera: http://<pi-ip>:8000/
+Live door camera: on the dashboard via LiveKit (LIVEKIT_* in ~/drone.env); same Wi-Fi: http://<pi-ip>:8000/
 """
 import argparse, http.server, io, json, math, os, socket, subprocess, sys, threading, time, urllib.request
 
@@ -74,11 +74,16 @@ CAM_EV = 1.5                    # exposure boost for backlit faces; lower it if 
 CAM_TUNING = "ov5647_noir.json" # this SUNNY Rev 1.3 clone: noir tuning gave neutral grey on a grey wall,
                                 # stock ov5647.json gave green. Set None for a genuine Rev 1.3 with IR filter
 PHOTO_BUCKET = "deliveries"     # Supabase Storage bucket: photo of the recipient at unlock
-# Public address of the MJPEG stream (Tailscale Funnel -> CAM_PORT), shown on the dashboard. Optional.
-CAMERA_URL = os.environ.get("CAMERA_URL", "").strip()
 CAMERA_RETRY_S = 60             # --watch: try to reopen the camera this often if it failed
-STREAM_FPS = 10                 # frames sent to each viewer: less than CAM_FPS so a hotspot/Funnel link keeps up
+# Local MJPEG stream on CAM_PORT, for testing on the same Wi-Fi (http://drone.local:8000/)
+STREAM_FPS = 10                 # frames sent to each viewer
 STREAM_SNDBUF = 64 * 1024       # small send buffer: a slow viewer drops frames instead of falling seconds behind
+# Smooth camera for the website (WebRTC via LiveKit Cloud). The Pi only connects OUT: no tunnel, no VPN.
+# Viewers join room "drone-<DRONE_ID>" with a subscribe-only token made by the website's server.
+LIVEKIT_URL = os.environ.get("LIVEKIT_URL", "").strip()          # wss://<project>.livekit.cloud
+LIVEKIT_API_KEY = os.environ.get("LIVEKIT_API_KEY", "").strip()
+LIVEKIT_API_SECRET = os.environ.get("LIVEKIT_API_SECRET", "").strip()
+LIVEKIT_ROOM = f"drone-{DRONE_ID or 'test'}"
 
 # --- Dashboard "Test servo" button (drone_commands rows), handled by --watch between missions ---
 SERVO_COMMANDS = ("servo_open", "servo_close", "servo_test")
@@ -134,9 +139,7 @@ class Box:
         if no_box:
             return
         from gpiozero import AngularServo  # gpiozero 2.x uses lgpio on the Pi 5
-        # initial_angle=None: no pulse until latch() is called. The default (0) jerked the bar to 0 deg
-        # every time a Box was made, before it moved to the real angle.
-        self.servo = AngularServo(SERVO_GPIO, initial_angle=None, min_angle=0, max_angle=180,
+        self.servo = AngularServo(SERVO_GPIO, min_angle=0, max_angle=180, initial_angle=None,  # silent until told
                                   min_pulse_width=SERVO_MIN_PULSE, max_pulse_width=SERVO_MAX_PULSE)
 
     def latch(self, deg, wait=time.sleep):
@@ -144,7 +147,7 @@ class Box:
         if self.fake:
             return
         self.servo.angle = deg
-        wait(0.6)
+        wait(1.0)  # software PWM is uneven while the camera encodes: hold long enough to always arrive
         self.servo.detach()  # the bar holds mechanically; no pulses = no jitter, no buzz
 
     def close(self):
@@ -196,6 +199,7 @@ def start_camera():
         frames = Frames()
         frames.cam = cam  # the vision thread grabs raw frames from it
         frames.dets, frames.hud, frames.vision_t = [], "", 0.0
+        frames.raw, frames.stopped = None, False  # raw = latest finished picture for LiveKit
         cam.post_callback = lambda req: draw_overlay(req, frames)  # after the AI's copy, before the encoder
         cam.start_recording(JpegEncoder(q=70), FileOutput(frames))
     except Exception as e:
@@ -207,7 +211,6 @@ def start_camera():
             self.send_response(200)
             self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=F")
             self.send_header("Cache-Control", "no-store")
-            self.send_header("Access-Control-Allow-Origin", "*")  # the dashboard reads the stream with fetch()
             self.end_headers()
             self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, STREAM_SNDBUF)
             try:
@@ -231,11 +234,56 @@ def start_camera():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     frames.srv = srv
     log(f"camera live at http://<pi-ip>:{CAM_PORT}/")
+    start_livekit(frames)
     return frames
+
+
+def start_livekit(frames):
+    """Publish the camera (with the AI boxes) to LiveKit in a background thread. Reconnects by itself."""
+    if not (LIVEKIT_URL and LIVEKIT_API_KEY and LIVEKIT_API_SECRET):
+        return
+    import asyncio
+    threading.Thread(target=lambda: asyncio.run(_livekit_publish(frames)), daemon=True).start()
+
+
+async def _livekit_publish(frames):
+    import asyncio
+    from datetime import timedelta
+    from livekit import api, rtc
+    W, H = CAM_SIZE
+    while not frames.stopped:
+        room = rtc.Room()
+        try:
+            token = (api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+                     .with_identity(LIVEKIT_ROOM).with_name("Drone door camera")  # same identity: a new
+                     .with_grants(api.VideoGrants(room_join=True, room=LIVEKIT_ROOM,  # publisher replaces the old
+                                                  can_publish=True, can_subscribe=False))
+                     .with_ttl(timedelta(hours=12)).to_jwt())
+            await room.connect(LIVEKIT_URL, token)
+            source = rtc.VideoSource(W, H)
+            track = rtc.LocalVideoTrack.create_video_track("door-camera", source)
+            await room.local_participant.publish_track(
+                track, rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_CAMERA))
+            log("livekit: camera live in room", LIVEKIT_ROOM)
+            last = None
+            while not frames.stopped and room.isconnected():
+                raw = frames.raw
+                if raw is not None and raw is not last:
+                    source.capture_frame(rtc.VideoFrame(W, H, rtc.VideoBufferType.RGBA, raw.tobytes()))
+                    last = raw
+                await asyncio.sleep(0.02)
+        except Exception as e:  # hotspot drop, wrong key...: never touch the flight, just retry
+            log("livekit error (retrying in 10 s):", e)
+        finally:
+            await room.disconnect()
+        if not frames.stopped:
+            await asyncio.sleep(10)
+    log("livekit: left the room")
 
 
 def stop_camera(frames):
     """Free the camera and CAM_PORT so a mission process can open them."""
+    frames.stopped = True  # LiveKit publisher leaves the room; the mission's camera takes over
     frames.srv.shutdown()
     frames.srv.server_close()
     frames.cam.stop_recording()
@@ -245,8 +293,15 @@ def stop_camera(frames):
 
 def draw_overlay(req, frames):
     """YOLO boxes + depth readout burned into the video stream (and the delivery photo)."""
-    if time.time() - frames.vision_t > 1:
-        return  # AI not running or stale: show the plain picture
+    if time.time() - frames.vision_t <= 1:  # AI running: draw its boxes, else the plain picture
+        _draw_boxes(req, frames)
+    if LIVEKIT_URL:
+        from picamera2 import MappedArray
+        with MappedArray(req, "main") as ma:
+            frames.raw = ma.array.copy()  # R,G,B,X bytes = what LiveKit calls RGBA
+
+
+def _draw_boxes(req, frames):
     import numpy as np
     from PIL import Image, ImageDraw, ImageFont
     from picamera2 import MappedArray
@@ -402,7 +457,7 @@ def watch(a):
     tried = set()  # never retry an order that failed pre-flight: fix it and dispatch a new one
     log("watching Supabase for dispatched orders", f"(drone {DRONE_ID})" if DRONE_ID else "")
     if not DRONE_ID:
-        log("WARNING: no DRONE_ID, so no heartbeat, camera link or dashboard servo test")
+        log("WARNING: no DRONE_ID, so no heartbeat, LiveKit camera or dashboard servo test")
     # Between missions the watcher owns the camera, so the dashboard can watch it; a mission takes it over.
     frames, cam_tried = start_camera(), time.time()
     last_orders = 0.0
@@ -436,13 +491,9 @@ def now_iso():
 
 
 def heartbeat():
-    """Tell the dashboard this drone is online (and where its camera is)."""
-    if not DRONE_ID:
-        return
-    row = {"last_seen": now_iso()}
-    if CAMERA_URL:
-        row["camera_url"] = CAMERA_URL  # needs supabase/add_drone_camera_url.sql
-    safe_db("PATCH", f"drones?id=eq.{DRONE_ID}", row)
+    """Tell the dashboard this drone is online."""
+    if DRONE_ID:
+        safe_db("PATCH", f"drones?id=eq.{DRONE_ID}", {"last_seen": now_iso()})
 
 
 def servo_commands(a):

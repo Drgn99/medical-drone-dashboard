@@ -6,7 +6,8 @@ import { LiveDroneMapDynamic } from "@/components/LiveDroneMapDynamic";
 import { OrderStatusSubscriber } from "@/components/OrderStatusSubscriber";
 import { OtpVerifier } from "@/components/OtpVerifier";
 import { DroneCameraFeed } from "@/components/DroneCameraFeed";
-import { createServiceClient } from "@/lib/supabase/service";
+import { isLiveKitConfigured, PATIENT_CAMERA_STATUSES } from "@/lib/livekit";
+import { getTrackingCameraToken } from "@/lib/actions/tracking";
 import type { OrderStatus } from "@/types/database";
 
 interface PublicOrder {
@@ -105,16 +106,11 @@ export default async function TrackingPage({
   const order = (Array.isArray(data) ? data[0] : data) as PublicOrder | null;
   if (!order) notFound();
 
-  // Live camera URL for the assigned drone (only this one field is exposed).
-  let cameraUrl: string | null = null;
-  if (order.drone_id) {
-    const { data: drone } = await createServiceClient()
-      .from("drones")
-      .select("*")
-      .eq("id", order.drone_id)
-      .maybeSingle();
-    cameraUrl = (drone?.camera_url as string | null | undefined) ?? null;
-  }
+  // The patient may watch the drone's camera only while it is on its way or at their door.
+  const showCamera =
+    isLiveKitConfigured() &&
+    order.drone_id != null &&
+    PATIENT_CAMERA_STATUSES.includes(order.status);
 
   const meta = STATUS_META[order.status] ?? STATUS_META.pending;
   const hasHospitalCoords =
@@ -186,7 +182,17 @@ export default async function TrackingPage({
         </div>
 
         {/* Camera feed */}
-        <DroneCameraFeed orderStatus={order.status} cameraUrl={cameraUrl} />
+        <DroneCameraFeed
+          orderStatus={order.status}
+          liveCamera={
+            showCamera && order.drone_id
+              ? {
+                  droneId: order.drone_id,
+                  getToken: getTrackingCameraToken.bind(null, order.id),
+                }
+              : null
+          }
+        />
 
         {/* OTP verifier — shown only when drone has arrived */}
         {order.status === "arrived" && (
