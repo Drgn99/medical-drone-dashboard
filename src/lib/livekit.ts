@@ -13,23 +13,41 @@ export function droneRoom(droneId: string) {
   return `drone-${droneId}`;
 }
 
+// Read at request time. A literal process.env.NEXT_PUBLIC_* is frozen into the build by
+// Next.js, so a build made before the variable was added would never see it.
+function env(name: string) {
+  return process.env[name]?.trim() || undefined;
+}
+
 // NEXT_PUBLIC_LIVEKIT_URL is the name used in the Pi team's handover (and Vercel); LIVEKIT_URL also works.
 function liveKitUrl() {
-  return process.env.NEXT_PUBLIC_LIVEKIT_URL || process.env.LIVEKIT_URL;
+  return env("NEXT_PUBLIC_LIVEKIT_URL") ?? env("LIVEKIT_URL");
+}
+
+/** Names (never values) of the LiveKit settings the server is missing. */
+export function missingLiveKitSettings() {
+  const missing: string[] = [];
+  if (!liveKitUrl()) missing.push("NEXT_PUBLIC_LIVEKIT_URL");
+  if (!env("LIVEKIT_API_KEY")) missing.push("LIVEKIT_API_KEY");
+  if (!env("LIVEKIT_API_SECRET")) missing.push("LIVEKIT_API_SECRET");
+  return missing;
 }
 
 /** True when the server can hand out camera tokens. */
 export function isLiveKitConfigured() {
-  return Boolean(liveKitUrl() && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET);
+  return missingLiveKitSettings().length === 0;
 }
 
 /** Short-lived, watch-only token for a drone's camera room. */
 export async function createViewerToken(droneId: string): Promise<CameraToken> {
   const url = liveKitUrl();
-  const apiKey = process.env.LIVEKIT_API_KEY;
-  const apiSecret = process.env.LIVEKIT_API_SECRET;
+  const apiKey = env("LIVEKIT_API_KEY");
+  const apiSecret = env("LIVEKIT_API_SECRET");
   if (!url || !apiKey || !apiSecret) {
-    return { ok: false, error: "LiveKit is not configured on the server" };
+    return {
+      ok: false,
+      error: `LiveKit is not configured on the server (missing: ${missingLiveKitSettings().join(", ")})`,
+    };
   }
 
   const at = new AccessToken(apiKey, apiSecret, {

@@ -17,13 +17,14 @@ import { getDroneCameraToken } from "@/lib/actions/drones";
 export function DroneCameraDialog({
   droneId,
   droneName,
-  liveKit,
+  missingSettings,
 }: {
   droneId: string;
   droneName: string;
-  /** Whether the website has LiveKit settings (the Pi publishes to room drone-<id>). */
-  liveKit: boolean;
+  /** LiveKit settings the website server is missing (names only); empty when ready. */
+  missingSettings: string[];
 }) {
+  const liveKit = missingSettings.length === 0;
   const [open, setOpen] = useState(false);
 
   return (
@@ -54,12 +55,16 @@ export function DroneCameraDialog({
             />
           ) : (
             <p className="text-sm text-muted-foreground">
-              The live camera isn&apos;t set up on the website yet. Add{" "}
-              <code className="font-mono text-xs">NEXT_PUBLIC_LIVEKIT_URL</code>,{" "}
-              <code className="font-mono text-xs">LIVEKIT_API_KEY</code> and{" "}
-              <code className="font-mono text-xs">LIVEKIT_API_SECRET</code> to the
-              website&apos;s environment and restart it (see{" "}
-              <code className="font-mono text-xs">pi/README.md</code>).
+              The live camera isn&apos;t set up on the website yet. The server
+              can&apos;t see:{" "}
+              {missingSettings.map((name, i) => (
+                <span key={name}>
+                  {i > 0 && ", "}
+                  <code className="font-mono text-xs">{name}</code>
+                </span>
+              ))}
+              . Add it to the website&apos;s environment (on Vercel: for this
+              environment, then Redeploy) and reload.
             </p>
           )}
         </DialogContent>
