@@ -168,23 +168,15 @@ export async function getDroneCommandStatus(
 
   const supabase = await createClient();
 
+  // One round trip; the inner join limits it to this hospital's drones.
   const { data } = await supabase
     .from("drone_commands")
-    .select("status, payload, drone_id")
+    .select("status, payload, drones!inner(hospital_id)")
     .eq("id", commandId)
-    .single();
+    .eq("drones.hospital_id", ctx.hospital.id)
+    .maybeSingle();
 
   if (!data) return { status: null, result: null };
-
-  // Only report on commands for this hospital's drones.
-  const { data: drone } = await supabase
-    .from("drones")
-    .select("id")
-    .eq("id", data.drone_id)
-    .eq("hospital_id", ctx.hospital.id)
-    .single();
-
-  if (!drone) return { status: null, result: null };
 
   const payload = (data.payload ?? {}) as Record<string, unknown>;
   const result = typeof payload.result === "string" ? payload.result : null;

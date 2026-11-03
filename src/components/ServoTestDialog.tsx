@@ -22,7 +22,7 @@ type Phase =
   | { kind: "done"; label: string; result: string | null }
   | { kind: "failed"; message: string };
 
-const POLL_MS = 1000;
+const POLL_MS = 500;
 const TIMEOUT_MS = 15000;
 
 const LABELS: Record<ServoCommandType, string> = {
@@ -40,10 +40,13 @@ export function ServoTestDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bumped on every new command / close, so late replies from an older run are ignored.
+  const runRef = useRef(0);
 
   function stopPolling() {
-    if (pollRef.current) clearInterval(pollRef.current);
+    runRef.current++;
+    if (pollRef.current) clearTimeout(pollRef.current);
     pollRef.current = null;
   }
 
@@ -51,10 +54,12 @@ export function ServoTestDialog({
 
   async function run(type: ServoCommandType) {
     stopPolling();
+    const runId = runRef.current;
     const label = LABELS[type];
     setPhase({ kind: "waiting", label });
 
     const sent = await sendServoCommand(droneId, type);
+    if (runId !== runRef.current) return;
     if (!sent.success || !sent.commandId) {
       setPhase({ kind: "failed", message: sent.error ?? "Could not send the command." });
       return;
@@ -63,24 +68,27 @@ export function ServoTestDialog({
     const commandId = sent.commandId;
     const startedAt = Date.now();
 
-    pollRef.current = setInterval(async () => {
+    // Poll one request at a time: server actions are queued, so a fixed
+    // interval would pile up requests and delay the next button press.
+    const poll = async () => {
       const { status, result } = await getDroneCommandStatus(commandId);
+      if (runId !== runRef.current) return;
 
       if (status === "done") {
-        stopPolling();
         setPhase({ kind: "done", label, result });
       } else if (status === "failed") {
-        stopPolling();
         setPhase({ kind: "failed", message: result ?? "The Pi reported an error." });
       } else if (Date.now() - startedAt > TIMEOUT_MS) {
-        stopPolling();
         setPhase({
           kind: "failed",
           message:
-            "No reply from the Pi after 15 seconds. Check that servo_listener.py is running and uses this drone's ID.",
+            "No reply from the Pi after 15 seconds. Check that the drone-bridge service is running, no mission is in progress, and DRONE_ID matches this drone.",
         });
+      } else {
+        pollRef.current = setTimeout(poll, POLL_MS);
       }
-    }, POLL_MS);
+    };
+    pollRef.current = setTimeout(poll, POLL_MS);
   }
 
   const busy = phase.kind === "waiting";

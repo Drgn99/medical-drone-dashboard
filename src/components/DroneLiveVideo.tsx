@@ -13,7 +13,9 @@ const CRLF2 = [13, 10, 13, 10];
  * Shows the MJPEG stream from the Pi's bridge.py (multipart JPEG frames with
  * Content-Length headers). Read with fetch() rather than <img src> so a stream
  * that ends or stalls (e.g. a mission taking over the camera) is noticed and
- * reconnected instead of freezing on the last frame.
+ * reconnected instead of freezing on the last frame. Frames are drawn on a
+ * canvas; if one arrives while the previous is still decoding, only the newest
+ * is kept, so a slow device skips frames instead of lagging behind.
  */
 export function DroneLiveVideo({
   src,
@@ -24,21 +26,43 @@ export function DroneLiveVideo({
   maxHeight?: number;
   children?: ReactNode;
 }) {
-  const imgRef = useRef<HTMLImageElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState<StreamState>("connecting");
 
   useEffect(() => {
     let stopped = false;
     let controller: AbortController | null = null;
-    let frameUrl: string | null = null;
     let lastFrame = 0;
+    let decoding = false;
+    let pending: Blob | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
+    async function draw(blob: Blob) {
+      decoding = true;
+      try {
+        const bitmap = await createImageBitmap(blob);
+        const canvas = canvasRef.current;
+        if (canvas && !stopped) {
+          if (canvas.width !== bitmap.width) canvas.width = bitmap.width;
+          if (canvas.height !== bitmap.height) canvas.height = bitmap.height;
+          canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+        }
+        bitmap.close();
+      } catch {
+        // A damaged frame: skip it.
+      }
+      decoding = false;
+      if (pending && !stopped) {
+        const next = pending;
+        pending = null;
+        draw(next);
+      }
+    }
+
     function showFrame(jpeg: Uint8Array<ArrayBuffer>) {
-      const url = URL.createObjectURL(new Blob([jpeg], { type: "image/jpeg" }));
-      if (imgRef.current) imgRef.current.src = url;
-      if (frameUrl) URL.revokeObjectURL(frameUrl);
-      frameUrl = url;
+      const blob = new Blob([jpeg], { type: "image/jpeg" });
+      if (decoding) pending = blob;
+      else draw(blob);
       if (lastFrame === 0) setState("playing");
       lastFrame = Date.now();
     }
@@ -96,7 +120,6 @@ export function DroneLiveVideo({
       clearInterval(watchdog);
       if (retryTimer) clearTimeout(retryTimer);
       controller?.abort();
-      if (frameUrl) URL.revokeObjectURL(frameUrl);
     };
   }, [src]);
 
@@ -105,11 +128,11 @@ export function DroneLiveVideo({
       className="relative overflow-hidden rounded-lg bg-black"
       style={{ minHeight: 180 }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- frames are blob: URLs */}
-      <img
-        ref={imgRef}
-        alt="Live drone camera"
-        className={`mx-auto w-full object-contain ${state === "playing" ? "" : "invisible"}`}
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label="Live drone camera"
+        className={`mx-auto block h-auto w-full object-contain ${state === "playing" ? "" : "invisible"}`}
         style={{ maxHeight }}
       />
 

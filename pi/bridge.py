@@ -16,7 +16,7 @@ Usage:
   python3 bridge.py --selftest
 Live door camera: http://<pi-ip>:8000/
 """
-import argparse, http.server, io, json, math, os, subprocess, sys, threading, time, urllib.request
+import argparse, http.server, io, json, math, os, socket, subprocess, sys, threading, time, urllib.request
 
 from pymavlink import mavutil
 
@@ -77,9 +77,13 @@ PHOTO_BUCKET = "deliveries"     # Supabase Storage bucket: photo of the recipien
 # Public address of the MJPEG stream (Tailscale Funnel -> CAM_PORT), shown on the dashboard. Optional.
 CAMERA_URL = os.environ.get("CAMERA_URL", "").strip()
 CAMERA_RETRY_S = 60             # --watch: try to reopen the camera this often if it failed
+STREAM_FPS = 10                 # frames sent to each viewer: less than CAM_FPS so a hotspot/Funnel link keeps up
+STREAM_SNDBUF = 64 * 1024       # small send buffer: a slow viewer drops frames instead of falling seconds behind
 
 # --- Dashboard "Test servo" button (drone_commands rows), handled by --watch between missions ---
 SERVO_COMMANDS = ("servo_open", "servo_close", "servo_test")
+WATCH_TICK_S = 0.5              # --watch checks for servo commands this often (dashboard waits for the reply)
+WATCH_ORDERS_S = 3              # ... and for dispatched orders / sends the heartbeat this often
 
 
 def log(*a):
@@ -130,7 +134,9 @@ class Box:
         if no_box:
             return
         from gpiozero import AngularServo  # gpiozero 2.x uses lgpio on the Pi 5
-        self.servo = AngularServo(SERVO_GPIO, min_angle=0, max_angle=180,
+        # initial_angle=None: no pulse until latch() is called. The default (0) jerked the bar to 0 deg
+        # every time a Box was made, before it moved to the real angle.
+        self.servo = AngularServo(SERVO_GPIO, initial_angle=None, min_angle=0, max_angle=180,
                                   min_pulse_width=SERVO_MIN_PULSE, max_pulse_width=SERVO_MAX_PULSE)
 
     def latch(self, deg, wait=time.sleep):
@@ -203,12 +209,17 @@ def start_camera():
             self.send_header("Cache-Control", "no-store")
             self.send_header("Access-Control-Allow-Origin", "*")  # the dashboard reads the stream with fetch()
             self.end_headers()
+            self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, STREAM_SNDBUF)
             try:
+                sent = 0.0
                 while True:
                     with frames.cond:
                         if not frames.cond.wait(timeout=5):
                             return  # camera stopped (handed to a mission): end the stream, the viewer reconnects
                         f = frames.frame
+                    if time.time() - sent < 1 / STREAM_FPS:
+                        continue  # skip this frame; the next one will be fresher anyway
+                    sent = time.time()
                     self.wfile.write(b"--F\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n" % len(f) + f + b"\r\n")
             except (BrokenPipeError, ConnectionResetError):
                 pass
@@ -394,11 +405,16 @@ def watch(a):
         log("WARNING: no DRONE_ID, so no heartbeat, camera link or dashboard servo test")
     # Between missions the watcher owns the camera, so the dashboard can watch it; a mission takes it over.
     frames, cam_tried = start_camera(), time.time()
+    last_orders = 0.0
     while True:
+        time.sleep(WATCH_TICK_S)
+        servo_commands(a)  # every tick: the dashboard is waiting for the latch to move
+        if time.time() - last_orders < WATCH_ORDERS_S:
+            continue
+        last_orders = time.time()
         if frames is None and time.time() - cam_tried > CAMERA_RETRY_S:
             frames, cam_tried = start_camera(), time.time()
         heartbeat()
-        servo_commands(a)
         for r in safe_db("GET", q) or []:
             oid = str(r["id"])
             if oid in tried:
@@ -413,7 +429,6 @@ def watch(a):
                                  "--baud", str(a.baud)] + (["--no-box"] if a.no_box else [])).returncode
             log("=== mission", oid, "ended, exit code", rc)
             break
-        time.sleep(3)
 
 
 def now_iso():
