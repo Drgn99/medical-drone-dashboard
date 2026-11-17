@@ -142,10 +142,56 @@ export async function getDroneCameraToken(droneId: string): Promise<CameraToken>
 
 export type ServoCommandType = "servo_open" | "servo_close" | "servo_test";
 
+/** Where the latch should be, from the last command the Pi finished (it has no sensor). */
+export type LatchState = { position: "locked" | "unlocked"; since: string } | null;
+
+const POSITION_AFTER: Record<ServoCommandType, "locked" | "unlocked"> = {
+  servo_open: "unlocked",
+  servo_close: "locked",
+  servo_test: "locked", // open, then close
+};
+
+async function lastLatchState(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  droneId: string
+): Promise<LatchState> {
+  const { data } = await supabase
+    .from("drone_commands")
+    .select("command_type, created_at")
+    .eq("drone_id", droneId)
+    .eq("status", "done")
+    .in("command_type", Object.keys(POSITION_AFTER))
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return null;
+  // created_at comes from the database clock; the Pi's clock can be off right after boot.
+  return {
+    position: POSITION_AFTER[data.command_type as ServoCommandType],
+    since: data.created_at,
+  };
+}
+
+export async function getLatchState(droneId: string): Promise<LatchState> {
+  const ctx = await getHospitalContext();
+  if (!ctx) return null;
+
+  const supabase = await createClient();
+  const { data: drone } = await supabase
+    .from("drones")
+    .select("id")
+    .eq("id", droneId)
+    .eq("hospital_id", ctx.hospital.id)
+    .maybeSingle();
+
+  return drone ? lastLatchState(supabase, droneId) : null;
+}
+
 export async function sendServoCommand(
   droneId: string,
   commandType: ServoCommandType
-): Promise<{ success: boolean; commandId?: string; error?: string }> {
+): Promise<{ success: boolean; commandId?: string; before?: LatchState; error?: string }> {
   const ctx = await getHospitalContext();
   if (!ctx) return { success: false, error: "Not authenticated" };
 
@@ -159,6 +205,8 @@ export async function sendServoCommand(
     .single();
 
   if (fetchError || !drone) return { success: false, error: "Drone not found" };
+
+  const before = await lastLatchState(supabase, droneId);
 
   const { data: command, error } = await supabase
     .from("drone_commands")
@@ -176,7 +224,7 @@ export async function sendServoCommand(
     return { success: false, error: error?.message ?? "Failed to send command" };
   }
 
-  return { success: true, commandId: command.id };
+  return { success: true, commandId: command.id, before };
 }
 
 export async function getDroneCommandStatus(
